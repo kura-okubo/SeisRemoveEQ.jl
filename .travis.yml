@@ -1,0 +1,32 @@
+# Documentation: http://docs.travis-ci.com/user/languages/julia/
+language: julia
+sudo: required
+dist: trusty
+os:
+  - linux
+  - osx
+julia:
+  - 1.1
+  - nightly
+matrix:
+  allow_failures:
+    - julia: nightly
+  fast_finish: true
+
+notifications:
+  email: false
+after_success:
+  - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
+jobs:
+  include:
+    - stage: Documentation
+      julia: 1.1
+      script:
+          - julia --project=docs/ -e 'using Pkg;
+                                              Pkg.develop(PackageSpec(path=pwd()));
+                                              Pkg.instantiate();
+                                              Pkg.build("SeisRemoveEQ")'
+          - julia -e 'using Pkg; Pkg.pkg"add https://github.com/jpjones76/SeisIO.jl.git";
+                      cd(Pkg.dir("SeisRemoveEQ")); Pkg.add("Documenter"); include(joinpath("docs", "make.jl"))'
+
+      after_success: skip

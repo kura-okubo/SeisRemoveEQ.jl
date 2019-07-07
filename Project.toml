@@ -1,0 +1,13 @@
+name = "SeisRemoveEQ"
+uuid = "ee8e518e-a107-11e9-1e00-0b6f0be20652"
+authors = ["kurama"]
+version = "0.1.0"
+
+[compat]
+julia = "1.1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
