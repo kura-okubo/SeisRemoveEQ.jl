@@ -26,3 +26,20 @@ z2 = map(x -> _f_kurt1(x, m), v[1:TN])
 
 a = [1,2,3]
 map(x -> x^2, a)
+
+
+v = collect(1:10)
+TN = 3
+n = length(v)
+A = Array{Float64, 2}(undef, TN, n-TN+1)
+for k = TN:n
+    icount = 1
+    println(k)
+    A[:, k-TN+1] = view(v, k-TN+1:k)
+end
+
+m = mean!(ones(n-TN+1)', A)
+
+varm(A, m.parent', dims=1, corrected = false)
+
+A = v

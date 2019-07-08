@@ -79,35 +79,31 @@ function fast_kurtosis_series(v::Array{Float64, 1}, TN::Int64)
     z2 = zeros(TN)
     m0 = mean(Trace)
 
-    #map!(x -> (x - m0)^2, z2, Trace)
-    #cm2 = mapreduce(identity, +, @views z2) / TN
-    #cm4 = mapreduce(x->x^2, +, @views z2) / TN
-
     cm2 = Statistics.varm(Trace, m0, corrected=false)
     cm4 = fourthmoment(Trace, m0, corrected=false)
 
     # fill first part with kurtosis at TN
     kurt[1:TN] .= (cm4 / (cm2 * cm2)) - 3.0
 
-    t1all = @elapsed @simd for k = TN:n-1
+    @simd for k = TN:n-1
 
-        t5 = @elapsed diff1 = @inbounds (v[k-TN+1] - v[k+1])/TN
-        t6 = @elapsed m1 = m0 - diff1
+        diff1 = @inbounds @views (v[k-TN+1] - v[k+1])/TN
+        m1 = m0 - diff1
 
         Trace = @views v[k-TN+2:k+1]
 
+        #m1 = mean(Trace)
+
         #t1 = @elapsed map!(x -> abs2.(x - m1), z2, Trace)
-        #t1 = @elapsed for l = 1:TN
-        #    z2[l] = (Trace[l] - m1)^2
-        #end
 
         t2 = @elapsed cm2 = Statistics.varm(Trace, m1, corrected=false)
 
-        #t2 = @elapsed cm2 = mapreduce(identity, +, z2) / TN
+        #t2 = @elapsed cm2_0 = mapreduce(identity, +, z2) / TN
         #t3 = @elapsed cm4_0 = mapreduce(x->x^2, +, z2) / TN
 
         t8 = @elapsed cm4 = fourthmoment(Trace, m1, corrected=false) #sum(xi - m)^4 / N
 
+        #println([cm2_0, cm2, cm2_0 - cm2])
         #println([cm4_0, cm4, cm4_0 - cm4])
 
         t4 = @elapsed kurt[k+1] = (cm4 / (cm2 * cm2)) - 3.0
@@ -116,11 +112,34 @@ function fast_kurtosis_series(v::Array{Float64, 1}, TN::Int64)
         t7 = @elapsed m0 = m1
 
         #println([t1, t2, t3 , t4 , t5 , t6, t7, t8])
-        println([t2, t4 , t5 , t6, t7, t8])
 
     end
 
-    println([t1all])
+    # kurttemp = Array{Float64, 1}(undef, n-TN)
+
+    # map!(x -> (cm4[x] / (cm2[x] * cm2[x])) - 3.0, kurttemp, 1:n-TN)
+    # #kurt[1:TN-1] .= kurttemp[1]
+    # kurt[TN+1:n] .= kurttemp
+
+    # make array of trace
+    #v = collect(1:10)
+    #TN = 3
+    #n = length(v)
+    # TA = Array{Cint, 2}(undef, TN, n-TN+1)
+    # for k = TN:n
+    #     TA[:, k-TN+1] = view(v, k-TN+1:k)
+    # end
+    #
+    # # compute array of mean value
+    # m = Statistics.mean!(ones(n-TN+1)', TA)
+    #
+    # # compute variance and fourth moment
+    # cm2 = Statistics.varm(TA, m.parent', dims=1, corrected = false)
+    # cm4 = fourthmoment(TA, m.parent', dims=1, corrected = false)
+    #
+    # map!(x -> (cm4[x] / (cm2[x] * cm2[x])) - 3.0, kurttemp, 1:n-TN+1)
+    # kurt[1:TN-1] .= kurttemp[1]
+    # kurt[TN:n] .= kurttemp
 
     return kurt
 
