@@ -67,6 +67,7 @@ function map_removeEQ(dlid, InputDict::Dict)
             bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(invert_tukey_α), plot_kurtosis_α,
                                 plot_boxheight, plot_span, fodir, tstamp, tvec, IsSaveFig)
 
+            println([bt_1, bt_2, bt_3])
             #remove kurtosis for memory
             S1.misc["kurtosis"] = []
 
