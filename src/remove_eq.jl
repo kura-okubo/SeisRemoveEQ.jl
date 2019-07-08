@@ -149,7 +149,9 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
 
         end
 
-        figname = @sprintf("%s/%s_%s.png", fodir, data.id, tstamp)
+        figdir = joinpath(fodir, "fig")
+        mkpath(figdir)
+        figname = @sprintf("%s/%s_%s.png", figdir, data.id, tstamp)
         savefig(p, figname)
         #display(p)
         #println("press return for next plot...")

@@ -24,7 +24,15 @@ function get_memoryuse(InputDict::Dict)
     trial_id        = 1
 
     while true
-        t1 = @elapsed Stest, bt1, bt2 = map_removeEQ(trial_id, InputDict) #[s]
+        t1 = @elapsed EE = map_removeEQ(trial_id, InputDict) #[s]
+
+		Stest = []
+		println(size(EE, 1))
+
+        for i = 1:size(EE[1])[1]
+			push!(Stest, EE[i][1])
+		end
+
         dl = [Stest[i].misc["dlerror"] for i in 1:size(Stest)[1]]
         if issubset(0, dl)
             break;
