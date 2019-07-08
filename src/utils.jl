@@ -6,7 +6,7 @@ export get_memoryuse, initlogo, printparams
 include("map_removeEQ.jl")
 using .Map_removeEQ
 
-using SeisIO, Printf, Dates, JLD2, FileIO
+using SeisIO, Printf, Dates, JLD2, FileIO, Distributed
 
 
 
@@ -24,13 +24,12 @@ function get_memoryuse(InputDict::Dict)
     trial_id        = 1
 
     while true
-        t1 = @elapsed EE = map_removeEQ(trial_id, InputDict) #[s]
+        global t1 = @elapsed EE = map_removeEQ(trial_id, InputDict) #[s]
 
-		Stest = []
-		println(size(EE, 1))
+		global Stest = []
 
         for i = 1:size(EE[1])[1]
-			push!(Stest, EE[i][1])
+			push!(Stest, EE[1][i])
 		end
 
         dl = [Stest[i].misc["dlerror"] for i in 1:size(Stest)[1]]
@@ -53,7 +52,7 @@ function get_memoryuse(InputDict::Dict)
 
     println(mem_per_requestid)
     println(max_num_of_processes_per_parallelcycle)
-    println("-------EQ REMOVAL STATS SUMMARY--------")
+	printstyled("---EQ REMOVAL STATS SUMMARY---\n"; color=:cyan, bold=true)
 
     println(@sprintf("Number of processes is %d.", nprocs()))
 
@@ -82,7 +81,7 @@ print parameters
 function printparams(param::Dict)
     printstyled("---Input Parameters---\n"; color=:cyan, bold=true)
     for key in keys(param)
-        println(@sprintf("%24s = %10s", key, string(param["$key"])))
+        println(@sprintf("%-24s = %-10s", key, string(param["$key"])))
     end
 end
 

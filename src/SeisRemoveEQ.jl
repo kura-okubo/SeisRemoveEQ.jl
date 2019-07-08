@@ -57,13 +57,15 @@ function seisremoveEQ(InputDict::Dict; MAX_MEM_PER_CPU::Float64=1.0)
 
 	# parallelize process by time stamp
 
+	file = jldopen(fopath, "r+")
+
 	E = []
 	bt_getkurtosis = 0.0
 	bt_removeeq = 0.0
 
 	if max_num_of_processes_per_parallelcycle >= NumofTimestamp
 		# one process cycle cover all time stamp
-		EE = pmap(x -> map_removeEQ(x, InputDictionary), 1:NumofTimestamp)
+		EE = pmap(x -> map_removeEQ(x, InputDict), 1:NumofTimestamp)
 
 		for i = 1:size(EE)[1]
 			push!(E, EE[i][1])
@@ -95,17 +97,17 @@ function seisremoveEQ(InputDict::Dict; MAX_MEM_PER_CPU::Float64=1.0)
 
 		    if startid1 == NumofTimestamp
 		        #use one
-		        EE = pmap(x -> map_removeEQ(x, InputDictionary), startid1:startid1)
+		        EE = pmap(x -> map_removeEQ(x, InputDict), startid1:startid1)
 
 		    elseif startid2 <= NumofTimestamp
 		        #use all processors
-		        EE = pmap(x -> map_removeEQ(x, InputDictionary), startid1:startid2)
+		        EE = pmap(x -> map_removeEQ(x, InputDict), startid1:startid2)
 
 		    else
 		        #use part of processors
 		        startid2 = startid1 + mod(NumofTimestamp, nprocs()) - 1
 		        println(startid2)
-		        EE = pmap(x -> map_removeEQ(x, InputDictionary), startid1:startid2)
+		        EE = pmap(x -> map_removeEQ(x, InputDict), startid1:startid2)
 		    end
 
 			for i = 1:size(EE)[1]
@@ -113,9 +115,6 @@ function seisremoveEQ(InputDict::Dict; MAX_MEM_PER_CPU::Float64=1.0)
 				bt_getkurtosis += EE[i][2]
 			    bt_removeeq += EE[i][3]
 			end
-
-			println(size(E)[1])
-			println(size(E[1])[1])
 
 		    # save data to jld2
 		    for ii = 1:size(E)[1] #loop at each starttime
@@ -133,12 +132,14 @@ function seisremoveEQ(InputDict::Dict; MAX_MEM_PER_CPU::Float64=1.0)
 		end
 	end
 
-	printstyled("---Summary---\n"; color=:blue, bold=true)
+	JLD2.close(file)
+
+	printstyled("---Summary---\n"; color=:cyan, bold=true)
 	println("time to get kurtosis =$(bt_getkurtosis)[s]")
 	println("time to remove EQ    =$(bt_removeeq)[s]")
-	print("process done at:")
+	print("\nprocess done at:")
 	println(now())
-	str = "EQ is successfully removed from raw data:\n output = $fopath"
+	str = "EQ is successfully removed from raw data:\nOutput = $fopath\n"
 	printstyled(str; color=:green, bold=true)
 
 end

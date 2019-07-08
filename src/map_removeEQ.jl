@@ -38,7 +38,7 @@ function map_removeEQ(dlid, InputDict::Dict)
 
     tstamp = DLtimestamplist[dlid]
 
-    if mod(dlid, round(0.1*length(DLtimestamplist))+1) == 0
+    if mod(dlid, round(0.1*NumofTimestamp)+1) == 0
         println("start timestamp id: $dlid")
     end
 
