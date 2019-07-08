@@ -47,6 +47,8 @@ function seisremoveEQ(InputDict::Dict; MAX_MEM_PER_CPU::Float64=1.0)
 	InputDict["NumofTimestamp"] = NumofTimestamp
 
 	#evaluate memory use
+	printstyled("---Start Test Process---\n"; color=:cyan, bold=true)
+
 	max_num_of_processes_per_parallelcycle = get_memoryuse(InputDict)
 
 	if max_num_of_processes_per_parallelcycle < 1
@@ -74,15 +76,15 @@ function seisremoveEQ(InputDict::Dict; MAX_MEM_PER_CPU::Float64=1.0)
 		end
 
 		# save data to jld2
-	   for ii = 1:size(E)[1] #loop at each starttime
-		   for jj = 1:size(E[1])[1] #loop at each station id
+		for ii = 1:size(E)[1] #loop at each starttime
+			for jj = 1:size(E[1])[1] #loop at each station id
 
 			   requeststr =E[ii][jj].id
 			   varname = joinpath(DLtimestamplist[ii], requeststr)
 			   #save_SeisData2JLD2(fopath, varname, S[ii][jj])
 			   file[varname] = E[ii][jj]
-		   end
-	   end
+			end
+		end
 
 	else
 		# processes by each max_num_of_processes_per_parallelcycle
@@ -129,6 +131,7 @@ function seisremoveEQ(InputDict::Dict; MAX_MEM_PER_CPU::Float64=1.0)
 		    end
 
 		    pitr += max_num_of_processes_per_parallelcycle
+
 		end
 	end
 

@@ -50,8 +50,6 @@ function get_memoryuse(InputDict::Dict)
     max_num_of_processes_per_parallelcycle = floor(Int64, InputDict["MAX_MEM_PER_CPU"]/mem_per_requestid)
     estimated_downloadtime = now() + Second(round(3 * t1 * numofitr / nprocs()))
 
-    println(mem_per_requestid)
-    println(max_num_of_processes_per_parallelcycle)
 	printstyled("---EQ REMOVAL STATS SUMMARY---\n"; color=:cyan, bold=true)
 
     println(@sprintf("Number of processes is %d.", nprocs()))
@@ -64,7 +62,9 @@ function get_memoryuse(InputDict::Dict)
         sizeunit = "GB"
     end
 
-    println(@sprintf("Download will finish at %s.", round(estimated_downloadtime, Dates.Second(1))))
+	println(@sprintf("One process returns %4.2e [%s] of dataset so maximum num of parallel processes is %d.",
+	 			totaldownloadsize, sizeunit, max_num_of_processes_per_parallelcycle))
+	println(@sprintf("Download will finish at %s.", round(estimated_downloadtime, Dates.Second(1))))
     println("*We have a time lag with processing time above, like in 10 minutes or so.*")
     println("*This estimation also changes if some processes fail and are skipped.*")
 
