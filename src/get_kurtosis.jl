@@ -18,32 +18,8 @@ using Distributions, Statistics, SeisIO
 function get_kurtosis(data::SeisChannel, timewinlength::Float64=60)
 
     #convert window lengths from seconds to samples
-    t1 = @elapsed TimeWin = trunc(Int,timewinlength * data.fs)
-
-    #set long window length to user input since last window of previous channel will have been adjusted
     TimeWin = trunc(Int,timewinlength * data.fs)
-    t2 = @elapsed data.misc["kurtosis"] = zeros(Float64, length(data.x))
-
-    i = 0
-
-    t3all = 0
-    t4all = 0
-    #loop through current channel by sliding
-    #while i < length(data.x) - TimeWin
-    #    #define chunk of data based on long window length and calculate long-term average
-    #    t3 = @elapsed Trace = @views data.x[i+1:i+TimeWin]
-    #    #t4 = @elapsed data.misc["kurtosis"][i+TimeWin] = kurtosis(Trace)
-    #    t4 = @elapsed data.misc["kurtosis"][i+TimeWin] = kurtosis(Trace)
-    #
-    #    t3all += t3
-    #    t4all += t4
-    #    #advance time window
-    #    i += 1
-    #end
-    t4all = @elapsed get_kurtosis!(data, TimeWin)
-
-    #println([t1, t2, t3all, t4all])
-    println([t1, t2, t4all])
+    data.misc["kurtosis"] = fast_kurtosis_series(data.x, TimeWin)
 
     return data
 
@@ -89,79 +65,14 @@ function fast_kurtosis_series(v::Array{Float64, 1}, TN::Int64)
 
         diff1 = @inbounds @views (v[k-TN+1] - v[k+1])/TN
         m1 = m0 - diff1
-
         Trace = @views v[k-TN+2:k+1]
-
-        #m1 = mean(Trace)
-
-        #t1 = @elapsed map!(x -> abs2.(x - m1), z2, Trace)
-
-        t2 = @elapsed cm2 = Statistics.varm(Trace, m1, corrected=false)
-
-        #t2 = @elapsed cm2_0 = mapreduce(identity, +, z2) / TN
-        #t3 = @elapsed cm4_0 = mapreduce(x->x^2, +, z2) / TN
-
-        t8 = @elapsed cm4 = fourthmoment(Trace, m1, corrected=false) #sum(xi - m)^4 / N
-
-        #println([cm2_0, cm2, cm2_0 - cm2])
-        #println([cm4_0, cm4, cm4_0 - cm4])
-
-        t4 = @elapsed kurt[k+1] = (cm4 / (cm2 * cm2)) - 3.0
-
-        # update mean value
-        t7 = @elapsed m0 = m1
-
-        #println([t1, t2, t3 , t4 , t5 , t6, t7, t8])
-
+        cm2 = Statistics.varm(Trace, m1, corrected=false)
+        cm4 = fourthmoment(Trace, m1, corrected=false) #sum(xi - m)^4 / N
+        kurt[k+1] = (cm4 / (cm2 * cm2)) - 3.0
+        m0 = m1
     end
 
-    # kurttemp = Array{Float64, 1}(undef, n-TN)
-
-    # map!(x -> (cm4[x] / (cm2[x] * cm2[x])) - 3.0, kurttemp, 1:n-TN)
-    # #kurt[1:TN-1] .= kurttemp[1]
-    # kurt[TN+1:n] .= kurttemp
-
-    # make array of trace
-    #v = collect(1:10)
-    #TN = 3
-    #n = length(v)
-    # TA = Array{Cint, 2}(undef, TN, n-TN+1)
-    # for k = TN:n
-    #     TA[:, k-TN+1] = view(v, k-TN+1:k)
-    # end
-    #
-    # # compute array of mean value
-    # m = Statistics.mean!(ones(n-TN+1)', TA)
-    #
-    # # compute variance and fourth moment
-    # cm2 = Statistics.varm(TA, m.parent', dims=1, corrected = false)
-    # cm4 = fourthmoment(TA, m.parent', dims=1, corrected = false)
-    #
-    # map!(x -> (cm4[x] / (cm2[x] * cm2[x])) - 3.0, kurttemp, 1:n-TN+1)
-    # kurt[1:TN-1] .= kurttemp[1]
-    # kurt[TN:n] .= kurttemp
-
     return kurt
-
-end
-
-
-"""
-    get_kurtosis!(data::SeisChannel, TimeWin::Int64)
-
-    get kurtosis series in SeisChannel
-
-# Input:
-    - `data::SeisChannel`    : SeisData from SeisIO
-    - `timewinlength::Float64`  : time window to calculate kurtosis
-
-    kurtosis evaluation following Baillard et al.(2013)
-"""
-function get_kurtosis!(data::SeisChannel, TimeWin::Int64)
-
-    kurt = fast_kurtosis_series(data.x, TimeWin)
-    data.misc["kurtosis"] = kurt
-    return 0
 
 end
 
