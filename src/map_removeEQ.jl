@@ -51,7 +51,8 @@ function map_removeEQ(dlid, InputDict::Dict)
 
     for st = stationlist
         #S = t[joinpath(tstamp, st)]
-        S = FileIO.load(finame, joinpath(tstamp, st))
+        st1 = replace(st, "-"=>"")
+        S = FileIO.load(finame, joinpath(tstamp, st1))
 
         if S.misc["dlerror"] == 0
             dt = 1/S.fs
