@@ -94,7 +94,7 @@ function map_removeEQ(dlid, InputDict::Dict)
                 bt_removeeq += bt_2 + bt_3 + btsta_1
 
                 #if mod(dlid, round(0.1*NumofTimestamp)+1) == 0
-                    println([bt_1, bt_2, btsta_1, bt_3])
+                #    println([bt_1, bt_2, btsta_1, bt_3])
                 #end
 
                 #remove kurtosis for reduce size

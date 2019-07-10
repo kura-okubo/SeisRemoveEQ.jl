@@ -104,8 +104,8 @@ function detect_eq_stalta(data::SeisChannel,longWinLength::Float64, shortWinLeng
         #define chunk of data based on long window length and calculate long-term average
         longTrace = trace[i:i+longWin]
         #lta = mean(abs.(longTrace))
-        #lta = StatsBase.mean(abs.(longTrace), weights(eqweight[i:i+longWin]))
-        lta = StatsBase.mean(abs.(longTrace))
+        lta = StatsBase.mean(abs.(longTrace), weights(eqweight[i:i+longWin]))
+        #lta = StatsBase.mean(abs.(longTrace))
 
         #reset short window counter
         n = 0
@@ -117,8 +117,8 @@ function detect_eq_stalta(data::SeisChannel,longWinLength::Float64, shortWinLeng
             shortTrace = @view trace[i+n:i+n+shortWin]
             shortTraceWeight = eqweight[i+n:i+n+shortWin]
             #sta = mean(abs.(shortTrace))
-            #sta = StatsBase.mean(abs.(shortTrace), weights(shortTraceWeight))
-            sta = StatsBase.mean(abs.(shortTrace))
+            sta = StatsBase.mean(abs.(shortTrace), weights(shortTraceWeight))
+            #sta = StatsBase.mean(abs.(shortTrace))
 
             #calculate sta/lta ration
             staLta = sta/lta
@@ -201,8 +201,7 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
             # apply invert tukey window
             invtukeywin = -tukey(t2id-t1id+1, invert_tukey_α) .+ 1
 
-            #data.x[t1id:t2id] = data.x[t1id:t2id] .* invtukeywin
-            data.x[t1id:t2id] .= 0
+            data.x[t1id:t2id] = data.x[t1id:t2id] .* invtukeywin
 
             #boxsize
             push!(y1, -plot_boxheight)
@@ -221,13 +220,13 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
         normalized_amp = 0.5 * maximum(data_origin.x[1:plot_span:end])
 
         trace1 = scatter(;x=tvec[1:plot_span:end], y=data_origin.x[1:plot_span:end]./ normalized_amp,
-         mode="lines", name="raw data", line=attr(line_color="black", line_width=1))
+         mode="lines", name="raw data", line_color="black")
 
         trace2 = scatter(;x=tvec[1:plot_span:end], y=data.x[1:plot_span:end]./ normalized_amp,
-         mode="lines", name="after remove", line=attr(line_color="blue", line_width=2))
+         mode="lines", name="after remove", line_color="blue")
 
         trace3 = scatter(;x=tvec[1:plot_span:end], y=data.misc["kurtosis"][1:plot_span:end] ./ maximum(abs.(data.misc["kurtosis"][1:plot_span:end])) .* plot_kurtosis_α,
-         line = attr(color="red", line_width=1), mode="lines", name="kurtosis")
+         line_color="red", mode="lines", name="kurtosis")
 
         if !isempty(t1)
          shapes = PlotlyJS.rect(t1, t2, y1, y2; fillcolor="#ff99cc", opacity=0.3, line_width=0)
