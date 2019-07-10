@@ -1,12 +1,12 @@
 module Remove_eq
 
-export detect_eq, remove_eq
+export detect_eq_kurtosis, stalta, remove_eq
 
-using DSP, Distributions, Statistics, SeisIO, Printf, PlotlyJS
+using DSP, Distributions, Statistics, StatsBase, SeisIO, Printf, PlotlyJS
 
 
 """
-    detect_eq(data::SeisData,tw::Float64=60.0, threshold::Float64=3.0, overlap::Float64=30)
+    detect_eq_kurtosis(data::SeisData,tw::Float64=60.0, threshold::Float64=3.0, overlap::Float64=30)
 
 find earthquake by kurtosis threshold
 
@@ -18,7 +18,7 @@ find earthquake by kurtosis threshold
 
     kurtosis evaluation following Baillard et al.(2013)
 """
-function detect_eq(data::SeisChannel,tw::Float64=60.0, kurtosis_threshold::Float64=3.0, overlap::Float64=30)
+function detect_eq_kurtosis(data::SeisChannel,tw::Float64=60.0, kurtosis_threshold::Float64=3.0, overlap::Float64=30)
 
     #convert window lengths from seconds to samples
     twsize = trunc(Int, tw * data.fs)
@@ -26,9 +26,6 @@ function detect_eq(data::SeisChannel,tw::Float64=60.0, kurtosis_threshold::Float
 
     #calculate how much to move beginning of window each iteration
     slide = twsize-overlapsize
-
-    #set long window length to user input since last window of previous channel will have been adjusted
-    data.misc["eqtimewindow"] = fill(false, length(data.x))
 
     #kurtosis of timeseries
     ku1 = data.misc["kurtosis"][:]
@@ -49,7 +46,7 @@ function detect_eq(data::SeisChannel,tw::Float64=60.0, kurtosis_threshold::Float
         if !isnothing(findfirst(x -> x > kurtosis_threshold, twtrace))
             #this time window includes earthquake
             for tt= i+1:i+twsize
-                data.misc["eqtimewindow"][tt] = true
+                data.misc["eqtimewindow"][tt] = false
             end
         end
 
@@ -58,6 +55,102 @@ function detect_eq(data::SeisChannel,tw::Float64=60.0, kurtosis_threshold::Float
 
     end
 
+    return data
+
+end
+
+
+"""
+    detect_eq_stalta(data::SeisChannel,tw::Float64=60.0, threshold::Float64=3.0, overlap::Float64=30)
+
+find earthquake and tremors by STA/LTA
+
+# Input:
+    - `data::SeisChannel`  : SeisChannel from SeisIO
+    - `longwin::Float64`   : long time window
+    - `shortwin::Float64`  : short time window
+    - `threshold::Float64` : STA/LTA threshold: if STA/LTA > threshold, the time window contains earthquake
+    - `overlap::Float64`   : overlap of time window to control the margin of earthquake removal. (large overlap assigns large margin before and after earthquake.)
+
+    original code written by Seth Olinger. For our purpose, overlap is applied for short time window
+"""
+function detect_eq_stalta(data::SeisChannel,longWinLength::Float64, shortWinLength::Float64, threshold::Float64, overlap::Float64)
+
+
+    #convert window lengths from seconds to samples
+    longWin = trunc(Int,longWinLength * data.fs)
+    shortWin = trunc(Int,shortWinLength * data.fs)
+    overlapWin = trunc(Int,overlap * data.fs)
+    trace = @view data.x[:]
+
+    #calculate how much to move beginning of window each iteration
+    slide = longWin
+
+    #save weight
+    eqweight = deepcopy(data.misc["eqtimewindow"])
+
+    #define long window counter and empty trigger vector
+    #triggers = zeros(length(trace))
+    i = 1
+
+    #loop through current channel by sliding
+    while i < length(trace)
+
+        #check if last window and change long window length if so
+        if length(trace) - i < longWin
+            longWin = length(trace)-i
+        end
+
+        #define chunk of data based on long window length and calculate long-term average
+        longTrace = trace[i:i+longWin]
+        #lta = mean(abs.(longTrace))
+        #lta = StatsBase.mean(abs.(longTrace), weights(eqweight[i:i+longWin]))
+        lta = StatsBase.mean(abs.(longTrace))
+
+        #reset short window counter
+        n = 0
+        breakflag = false
+        #loop through long window in short windows
+        while n <= longWin - shortWin
+
+            #define chunk of data based on short window length and calculate short-term average
+            shortTrace = @view trace[i+n:i+n+shortWin]
+            shortTraceWeight = eqweight[i+n:i+n+shortWin]
+            #sta = mean(abs.(shortTrace))
+            #sta = StatsBase.mean(abs.(shortTrace), weights(shortTraceWeight))
+            sta = StatsBase.mean(abs.(shortTrace))
+
+            #calculate sta/lta ration
+            staLta = sta/lta
+
+            #record detection time if sta/lta ratio exceeds threshold
+            if staLta > threshold
+                #triggers[i+n] = 1
+                #this time window includes earthquake
+                for tt= i+n:i+n+shortWin
+                    data.misc["eqtimewindow"][tt] = false
+                end
+            end
+
+            if breakflag
+                break;
+            end
+
+            #advance short window
+            n = n + shortWin - overlapWin
+
+            #adjust for the last edge of long window
+            if n >= longWin - shortWin
+                n = longWin - shortWin
+                breakflag = true
+            end
+
+        end
+
+        #advance long window
+        i = i + slide
+
+    end
 
     return data
 
@@ -86,23 +179,30 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
     y2 = []
 
     while i <= length(data.x)
-        if eqidlist[i]
+        if !eqidlist[i]
             push!(t1, tvec[i])
 
             t1id = i
-            #find next id
-            t2id = t1id + findfirst(x -> x == false, eqidlist[t1id:end])
 
-            if t2id == t1id; t2id = length(eqidlist); end;
+            #find next id
+            nexttrueid = findfirst(x -> x == true, eqidlist[t1id:end])
+
+            if isnothing(nexttrueid)
+                # all data is removed
+                t2id = length(eqidlist)
+                iinc = length(eqidlist)
+            else
+                t2id = t1id + nexttrueid
+                iinc = t2id - i
+            end
 
             push!(t2, tvec[t2id])
 
             # apply invert tukey window
             invtukeywin = -tukey(t2id-t1id+1, invert_tukey_α) .+ 1
 
-            data.x[t1id:t2id] = data.x[t1id:t2id] .* invtukeywin
-
-            iinc = t2id - i
+            #data.x[t1id:t2id] = data.x[t1id:t2id] .* invtukeywin
+            data.x[t1id:t2id] .= 0
 
             #boxsize
             push!(y1, -plot_boxheight)
@@ -111,7 +211,9 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
         else
             iinc = 1
         end
+
         i += iinc
+
     end
 
     if IsSaveFig

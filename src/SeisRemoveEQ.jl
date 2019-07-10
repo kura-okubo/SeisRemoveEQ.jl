@@ -11,7 +11,7 @@ using Dates, Printf, JLD2, FileIO, Distributed
 
 export seisremoveEQ
 
-function seisremoveEQ(InputDict::Dict; MAX_MEM_PER_CPU::Float64=1.0)
+function seisremoveEQ(InputDict::Dict)
 
 	Utils.initlogo()
 
@@ -41,7 +41,6 @@ function seisremoveEQ(InputDict::Dict; MAX_MEM_PER_CPU::Float64=1.0)
 	#print parameters
 	printparams(InputDict)
 
-	InputDict["MAX_MEM_PER_CPU"] = MAX_MEM_PER_CPU
 	InputDict["DLtimestamplist"] = DLtimestamplist
 	InputDict["stationlist"] = stationlist
 	InputDict["NumofTimestamp"] = NumofTimestamp
@@ -107,7 +106,7 @@ function seisremoveEQ(InputDict::Dict; MAX_MEM_PER_CPU::Float64=1.0)
 
 		    else
 		        #use part of processors
-		        startid2 = startid1 + mod(NumofTimestamp, nprocs()) - 1
+		        startid2 = startid1 + mod(NumofTimestamp, max_num_of_processes_per_parallelcycle) - 1
 		        println(startid2)
 		        EE = pmap(x -> map_removeEQ(x, InputDict), startid1:startid2)
 		    end
