@@ -44,6 +44,11 @@ varm(A, m.parent', dims=1, corrected = false)
 
 A = v
 
+using StatsBase
+c = [false, false, false, true]
+a = [1,2,3,4]
+mean(a, weights(c))
+
 using Dierckx
 
 x = 1:10

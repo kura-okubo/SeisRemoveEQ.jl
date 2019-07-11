@@ -8,6 +8,7 @@ using SeisIO
 
 include("get_kurtosis.jl")
 include("remove_eq.jl")
+
 using .Get_kurtosis, .Remove_eq
 
 """
@@ -18,12 +19,18 @@ using .Get_kurtosis, .Remove_eq
 function map_removeEQ(dlid, InputDict::Dict)
 
     #store data
+
     finame                 =InputDict["finame"]
+    IsKurtosisRemoval      =InputDict["IsKurtosisRemoval"]
     max_edgetaper_duration =InputDict["max_edgetaper_duration"]
     kurtosis_timewindow    =InputDict["kurtosis_timewindow"]
     kurtosis_threshold     =InputDict["kurtosis_threshold"]
-    overlap                =InputDict["overlap"]
+    IsSTALTARemoval        =InputDict["IsSTALTARemoval"]
+    stalta_longtimewindow  =InputDict["stalta_longtimewindow"]
+    stalta_threshold       =InputDict["stalta_threshold"]
     invert_tukey_α         =InputDict["invert_tukey_α"]
+    removal_shorttimewindow=InputDict["removal_shorttimewindow"]
+    overlap                =InputDict["overlap"]
     plot_kurtosis_α        =InputDict["plot_kurtosis_α"]
     plot_boxheight         =InputDict["plot_boxheight"]
     plot_span              =InputDict["plot_span"]
@@ -63,18 +70,60 @@ function map_removeEQ(dlid, InputDict::Dict)
             SeisIO.taper!(S,  t_max = max_edgetaper_duration, α=0.05)
             S1 = deepcopy(S)
 
-            bt_1 = @elapsed S1 = Get_kurtosis.get_kurtosis(S1, float(kurtosis_timewindow))
-            tw = kurtosis_timewindow; #so far this is most stable
-            bt_2 = @elapsed S1 = Remove_eq.detect_eq(S1, float(tw), float(kurtosis_threshold), float(overlap))
-            bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(invert_tukey_α), plot_kurtosis_α,
-                                plot_boxheight, plot_span, fodir, tstamp, tvec, IsSaveFig)
+            #set long window length to user input since last window of previous channel will have been adjusted
+            S1.misc["eqtimewindow"] = fill(true, length(S1.x))
 
-            println([bt_1, bt_2, bt_3])
-            #remove kurtosis for memory
-            S1.misc["kurtosis"] = []
+            if IsKurtosisRemoval
+                # compute kurtosis and detect earthqukes
+                bt_1 = @elapsed S1 = Get_kurtosis.get_kurtosis(S1, float(kurtosis_timewindow))
+                bt_2 = @elapsed S1 = Remove_eq.detect_eq_kurtosis(S1, float(removal_shorttimewindow), float(kurtosis_threshold), float(overlap))
 
-            bt_getkurtosis += bt_1
-            bt_removeeq += bt_2 + bt_3
+                btsta_1 = 0
+
+                if IsSTALTARemoval
+                    # detect earthquake and tremors by STA/LTA
+                    btsta_1 = @elapsed S1 = Remove_eq.detect_eq_stalta(S1, float(stalta_longtimewindow), float(removal_shorttimewindow),
+                                        float(stalta_threshold), float(overlap))
+                end
+
+                bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(invert_tukey_α), plot_kurtosis_α,
+                                plot_boxheight, trunc(Int, plot_span), fodir, tstamp, tvec, IsSaveFig)
+
+
+                bt_getkurtosis += bt_1
+                bt_removeeq += bt_2 + bt_3 + btsta_1
+
+                #if mod(dlid, round(0.1*NumofTimestamp)+1) == 0
+                #    println([bt_1, bt_2, btsta_1, bt_3])
+                #end
+
+                #remove kurtosis for reduce size
+                S1.misc["kurtosis"] = []
+                S1.misc["eqtimewindow"] = []
+
+            else
+                #only STA/LTA
+                if IsSTALTARemoval
+
+                    bt_2 = @elapsed S1 = Remove_eq.detect_eq_stalta(S1, float(stalta_longtimewindow), float(removal_shorttimewindow),
+                                        float(stalta_threshold), float(overlap))
+                    bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(invert_tukey_α), plot_kurtosis_α,
+                                    plot_boxheight, trunc(Int, plot_span), fodir, tstamp, tvec, IsSaveFig)
+
+                    #remove kurtosis for reduce size
+                    S1.misc["kurtosis"] = []
+                    S1.misc["eqtimewindow"] = []
+
+                    bt_getkurtosis += 0.0
+                    bt_removeeq += bt_2 + bt_3
+
+                else
+                    #no removal process.
+                    println("Both 'IsKurtosisRemoval' and 'IsKurtosisRemoval' are false. No removal process is executed.")
+                    exit(0)
+                end
+
+            end
 
         else
             #download error found: save as it is.
