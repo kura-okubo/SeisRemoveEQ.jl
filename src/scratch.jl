@@ -48,3 +48,12 @@ using StatsBase
 c = [false, false, false, true]
 a = [1,2,3,4]
 mean(a, weights(c))
+
+using Dierckx
+
+x = 1:10
+y = collect(1:2:20)
+spl = Spline1D(x, y; k=1, bc="nearest")
+
+t = collect(1:0.1:10)
+y1 = evaluate(spl, t)
