@@ -43,3 +43,12 @@ m = mean!(ones(n-TN+1)', A)
 varm(A, m.parent', dims=1, corrected = false)
 
 A = v
+
+using Dierckx
+
+x = 1:10
+y = collect(1:2:20)
+spl = Spline1D(x, y; k=1, bc="nearest")
+
+t = collect(1:0.1:10)
+y1 = evaluate(spl, t)

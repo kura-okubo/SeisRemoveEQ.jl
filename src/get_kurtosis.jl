@@ -2,7 +2,7 @@ module Get_kurtosis
 
 export get_kurtosis
 
-using Distributions, Statistics, SeisIO
+using Distributions, Statistics, Dierckx, SeisIO
 
 """
     get_kurtosis(data::SeisChannel,timewinlength::Float64=60)
@@ -12,10 +12,10 @@ using Distributions, Statistics, SeisIO
 # Input:
     - `data::SeisData`    : SeisData from SeisIO
     - `timewinlength::Float64`  : time window to calculate kurtosis
-
+    - `kurtsis_tw_sparse::Float64` : time length of span for kurtosis time window
     kurtosis evaluation following Baillard et al.(2013)
 """
-function get_kurtosis(data::SeisChannel, timewinlength::Float64=60)
+function get_kurtosis(data::SeisChannel, timewinlength::Float64=60, kurtsis_tw_sparse::Float64)
 
     #convert window lengths from seconds to samples
     TimeWin = trunc(Int,timewinlength * data.fs)
@@ -37,18 +37,43 @@ end
 
     kurtosis evaluation following Baillard et al.(2013)
 """
-function fast_kurtosis_series(v::Array{Float64, 1}, TN::Int64)
+function fast_kurtosis_series(v::Array{Float64, 1}, TN::Int64, kurtsis_tw_sparse::Float64)
 
     kurt = zeros(length(v))
     n = length(v)
+    kurt_grid = 1:n
+
+    KTWSparse = kurtsis_tw_sparse
 
     if n < TN error("Kurtosis time window is larger than data length. Decrease time window.") end
 
     cm2 = 0.0  # empirical 2nd centered moment (variance)
     cm4 = 0.0  # empirical 4th centered moment
 
-    # 1. compute mean value at each time window by numerical sequence
+    # !DEPRECATED!: 1. compute mean value at each time window by numerical sequence
     # 2. use mapreduce to sum values
+
+    # # first term
+    # Trace = @views v[1:TN]
+    # z2 = zeros(TN)
+    # m0 = mean(Trace)
+    #
+    # cm2 = Statistics.varm(Trace, m0, corrected=false)
+    # cm4 = fourthmoment(Trace, m0, corrected=false)
+    #
+    # # fill first part with kurtosis at TN
+    # kurt[1:TN] .= (cm4 / (cm2 * cm2)) - 3.0
+    #
+    # @simd for k = TN:n-1
+    #
+    #     diff1 = @inbounds @views (v[k-TN+1] - v[k+1])/TN
+    #     m1 = m0 - diff1
+    #     Trace = @views v[k-TN+2:k+1]
+    #     cm2 = Statistics.varm(Trace, m1, corrected=false)
+    #     cm4 = fourthmoment(Trace, m1, corrected=false) #sum(xi - m)^4 / N
+    #     kurt[k+1] = (cm4 / (cm2 * cm2)) - 3.0
+    #     m0 = m1
+    # end
 
     # first term
     Trace = @views v[1:TN]
