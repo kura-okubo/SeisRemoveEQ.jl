@@ -198,10 +198,40 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
 
             push!(t2, tvec[t2id])
 
-            # apply invert tukey window
-            invtukeywin = -tukey(t2id-t1id+1, invert_tukey_α) .+ 1
+            # compute α given maximum taper length
+            eq_length = t2id-t1id+1
+            taper_length = 2*max_wintaper_duration
+            tukey_length = eq_length + taper_length
+            invert_tukey_α = taper_length/tukey_length
 
-            data.x[t1id:t2id] = data.x[t1id:t2id] .* invtukeywin
+            # define inverted tukey window
+            invtukeywin = -tukey(tukey_length, invert_tukey_α) .+ 1
+
+            # slice tukey window if it exceeds array bounds
+            if length(tvec[1:t1id])<max_wintaper_duration
+                left_overflow = (max_wintaper_duration-length(tvec[1:t1id]))
+                invtukeywin = invtukeywin[left_overflow+1:end]
+                # leftmost t
+                left = 1
+            else
+                # full taper length
+                left = t1id - max_wintaper_duration
+            end
+                # apply tukey window
+                data.x[1:t2id+max_wintaper_duration] *= invtukeywin
+            end
+            if length(tvec[t2id:end])<max_wintaper_duration
+                right_overflow = (max_wintaper_duration-length(tvec[t2id:end]))
+                invtukeywin = invtukeywin[1:end-right_overflow]
+                # rightmost t
+                right = length(tvec)
+            else
+                # full taper length
+                right = t2id + max_wintaper_duration
+            end
+
+            # apply tukey window
+            data.x[left:right] *= invtukeywin
 
             #boxsize
             push!(y1, -plot_boxheight)
