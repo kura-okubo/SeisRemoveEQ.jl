@@ -77,7 +77,7 @@ function map_removeEQ(dlid, InputDict::Dict)
             if IsKurtosisRemoval
                 # compute kurtosis and detect earthqukes
                 bt_1 = @elapsed S1 = Get_kurtosis.get_kurtosis(S1, float(kurtosis_timewindow))
-                bt_2 = @elapsed S1 = Remove_eq.detect_eq_kurtosis(S1, float(removal_shorttimewindow), float(kurtosis_threshold), float(overlap))
+                bt_2 = @elapsed S1 = Remove_eq.detect_eq_kurtosis(S1, tw=float(removal_shorttimewindow), kurtosis_threshold=float(kurtosis_threshold), overlap=float(overlap))
 
                 btsta_1 = 0
 

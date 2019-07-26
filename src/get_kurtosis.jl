@@ -11,15 +11,15 @@ using Distributions, Statistics, Dierckx, SeisIO
 
 # Input:
     - `data::SeisData`    : SeisData from SeisIO
-    - `kurtsis_tw_sparse::Float64` : time length of span for kurtosis time window
+    - `kurtosis_tw_sparse::Float64` : time length of span for kurtosis time window
     - `timewinlength::Float64`  : time window to calculate kurtosis
     kurtosis evaluation following Baillard et al.(2013)
 """
-function get_kurtosis(data::SeisChannel, kurtsis_tw_sparse::Float64; timewinlength::Float64=60)
+function get_kurtosis(data::SeisChannel, kurtosis_tw_sparse::Float64; timewinlength::Float64=60.0)
 
     #convert window lengths from seconds to samples
     TimeWin = trunc(Int,timewinlength * data.fs)
-    data.misc["kurtosis"] = fast_kurtosis_series(data.x, TimeWin)
+    data.misc["kurtosis"] = fast_kurtosis_series(data.x, TimeWin, kurtosis_tw_sparse)
 
     return data
 
@@ -37,13 +37,13 @@ end
 
     kurtosis evaluation following Baillard et al.(2013)
 """
-function fast_kurtosis_series(v::Array{Float64, 1}, TN::Int64, kurtsis_tw_sparse::Float64)
+function fast_kurtosis_series(v::Array{Float64, 1}, TN::Int64, kurtosis_tw_sparse::Float64)
 
     kurt = zeros(length(v))
     n = length(v)
     kurt_grid = 1:n
 
-    KTWSparse = kurtsis_tw_sparse
+    KTWSparse = kurtosis_tw_sparse
 
     if n < TN error("Kurtosis time window is larger than data length. Decrease time window.") end
 

@@ -166,7 +166,7 @@ remove earthquake by kurtosis and STA/LTA threshold
     - `data::SeisData`    : SeisData from SeisIO
 
 """
-function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α::Float64, plot_kurtosis_α::Float64, max_wintaper_duration::Float64,
+function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α::Float64, plot_kurtosis_α::Float64, max_taper_dur::Float64,
     plot_boxheight::Float64, plot_span::Int64, fodir::String, tstamp::String, tvec::Array{Float64,1}, IsSaveFig::Bool)
 
     eqidlist = data.misc["eqtimewindow"][:]
@@ -198,6 +198,8 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
 
             push!(t2, tvec[t2id])
 
+            max_wintaper_duration = Int(data.fs*max_taper_dur)
+
             # compute α given maximum taper length
             eq_length = t2id-t1id+1
             taper_length = 2*max_wintaper_duration
@@ -205,11 +207,11 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
             invert_tukey_α = taper_length/tukey_length
 
             # define inverted tukey window
-            invtukeywin = -tukey(tukey_length, invert_tukey_α) .+ 1
+            invtukeywin = -tukey(Int(tukey_length), invert_tukey_α) .+ 1
 
             # slice tukey window if it exceeds array bounds
             if length(tvec[1:t1id])<max_wintaper_duration
-                left_overflow = (max_wintaper_duration-length(tvec[1:t1id]))
+                left_overflow = (max_wintaper_duration-length(tvec[1:t1id]))+1
                 invtukeywin = invtukeywin[left_overflow+1:end]
                 # leftmost t
                 left = 1
@@ -217,8 +219,8 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
                 # full taper length
                 left = t1id - max_wintaper_duration
             end
-            if length(tvec[t2id:end])<max_wintaper_duration
-                right_overflow = (max_wintaper_duration-length(tvec[t2id:end]))
+            if length(tvec[t2id+1:end])<max_wintaper_duration
+                right_overflow = (max_wintaper_duration-length(tvec[t2id:end]))+1
                 invtukeywin = invtukeywin[1:end-right_overflow]
                 # rightmost t
                 right = length(tvec)
@@ -228,7 +230,7 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
             end
 
             # apply tukey window
-            data.x[left:right] *= invtukeywin
+            data.x[left:right] .*= invtukeywin
 
             #boxsize
             push!(y1, -plot_boxheight)
