@@ -5,17 +5,17 @@ export get_kurtosis
 using Distributions, Statistics, Dierckx, SeisIO
 
 """
-    get_kurtosis(data::SeisChannel,timewinlength::Float64=60)
+    get_kurtosis(data::SeisChannel,kurtsis_tw_sparse::Float64; timewinlength::Float64=60)
 
     compute kurtosis at each timewindow
 
 # Input:
     - `data::SeisData`    : SeisData from SeisIO
-    - `timewinlength::Float64`  : time window to calculate kurtosis
     - `kurtsis_tw_sparse::Float64` : time length of span for kurtosis time window
+    - `timewinlength::Float64`  : time window to calculate kurtosis
     kurtosis evaluation following Baillard et al.(2013)
 """
-function get_kurtosis(data::SeisChannel, timewinlength::Float64=60, kurtsis_tw_sparse::Float64)
+function get_kurtosis(data::SeisChannel, kurtsis_tw_sparse::Float64; timewinlength::Float64=60)
 
     #convert window lengths from seconds to samples
     TimeWin = trunc(Int,timewinlength * data.fs)

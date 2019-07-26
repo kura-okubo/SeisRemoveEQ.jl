@@ -18,7 +18,7 @@ find earthquake by kurtosis threshold
 
     kurtosis evaluation following Baillard et al.(2013)
 """
-function detect_eq_kurtosis(data::SeisChannel,tw::Float64=60.0, kurtosis_threshold::Float64=3.0, overlap::Float64=30)
+function detect_eq_kurtosis(data::SeisChannel; tw::Float64=60.0, kurtosis_threshold::Float64=3.0, overlap::Float64=30)
 
     #convert window lengths from seconds to samples
     twsize = trunc(Int, tw * data.fs)
@@ -166,7 +166,7 @@ remove earthquake by kurtosis and STA/LTA threshold
     - `data::SeisData`    : SeisData from SeisIO
 
 """
-function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α::Float64, plot_kurtosis_α::Float64,
+function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α::Float64, plot_kurtosis_α::Float64, max_wintaper_duration::Float64,
     plot_boxheight::Float64, plot_span::Int64, fodir::String, tstamp::String, tvec::Array{Float64,1}, IsSaveFig::Bool)
 
     eqidlist = data.misc["eqtimewindow"][:]
@@ -216,9 +216,6 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
             else
                 # full taper length
                 left = t1id - max_wintaper_duration
-            end
-                # apply tukey window
-                data.x[1:t2id+max_wintaper_duration] *= invtukeywin
             end
             if length(tvec[t2id:end])<max_wintaper_duration
                 right_overflow = (max_wintaper_duration-length(tvec[t2id:end]))
