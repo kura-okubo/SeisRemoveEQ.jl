@@ -77,13 +77,12 @@ function seisremoveEQ(InputDict::Dict)
 		end
 
 		# save data to jld2
-		for ii = 1:size(E)[1] #loop at each starttime
-			for jj = 1:size(E[1])[1] #loop at each station id
-
-			   requeststr =E[ii][jj].id
+		for ii = 1:length(E) #loop at each starttime
+			for jj = 1:length(E[ii]) #loop at each station id
+			   requeststr =E[ii][jj][1].id
 			   varname = joinpath(DLtimestamplist[ii], requeststr)
 			   #save_SeisData2JLD2(fopath, varname, S[ii][jj])
-			   file[varname] = E[ii][jj]
+			   file[varname] = E[ii][jj] #SeisData
 			end
 		end
 
@@ -113,6 +112,8 @@ function seisremoveEQ(InputDict::Dict)
 		        EE = pmap(x -> map_removeEQ(x, InputDict), startid1:startid2)
 		    end
 
+			println(EE[1][1])
+
 			for i = 1:size(EE)[1]
 				push!(E, EE[i][1])
 				bt_getkurtosis += EE[i][2]
@@ -120,16 +121,16 @@ function seisremoveEQ(InputDict::Dict)
 			end
 
 		    # save data to jld2
-		    for ii = 1:size(E)[1] #loop at each starttime
-		        for jj = 1:size(E[1])[1] #loop at each station id
 
-		            requeststr =E[ii][jj].id
-		            varname = joinpath(DLtimestamplist[startid1+ii-1], requeststr)
-		            #save_SeisData2JLD2(fopath, varname, S[ii][jj])
-		            file[varname] = E[ii][jj]
-
-		        end
-		    end
+			# save data to jld2
+			for ii = 1:length(E) #loop at each starttime
+				for jj = 1:length(E[ii]) #loop at each station id
+				   requeststr =E[ii][jj][1].id
+				   varname = joinpath(DLtimestamplist[ii], requeststr)
+				   #save_SeisData2JLD2(fopath, varname, S[ii][jj])
+				   file[varname] = E[ii][jj] #SeisData
+				end
+			end
 
 		    pitr += max_num_of_processes_per_parallelcycle
 

@@ -38,7 +38,7 @@ end
 
     kurtosis evaluation following Baillard et al.(2013)
 """
-function fast_kurtosis_series(v::Array{Float64, 1}, TN::Int64, SparseWin::Int64)
+function fast_kurtosis_series(v::Array, TN::Int64, SparseWin::Int64)
 
     kurt = zeros(length(v))
     n = length(v)

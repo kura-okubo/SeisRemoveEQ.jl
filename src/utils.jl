@@ -21,23 +21,32 @@ evaluate memory use and estimate computational time
 """
 function get_memoryuse(InputDict::Dict)
 
-    trial_id        = 1
+    trial_id = 1
+
+	Stest = []
 
     while true
         global t1 = @elapsed EE = map_removeEQ(trial_id, InputDict) #[s]
 
-		global Stest = []
+		Stest = []
 
-        for i = 1:size(EE[1])[1]
+        for i = 1:length(EE[1])
+			Seistemp =  #SeisData
 			push!(Stest, EE[1][i])
 		end
 
-        dl = [Stest[i].misc["dlerror"] for i in 1:size(Stest)[1]]
+		# look at only first channel of SeisData
+    	dl = [Stest[i][1].misc["dlerror"] for i in 1:length(Stest)]
+
         if issubset(0, dl)
             break;
         else
             trial_id += 1
         end
+
+		if trial_id > length(InputDict["DLtimestamplist"])
+			error("all atempt was failed.")
+		end
     end
 
     numofitr = InputDict["NumofTimestamp"] # number of iteration by parallel processing
@@ -45,7 +54,7 @@ function get_memoryuse(InputDict::Dict)
         error("all requests you submitted with input dictionary was failed. Please check the station availability in your request.")
     end
 
-    mem_per_requestid = 1.2 * sizeof(Stest) / GB #[GB] *for the safty, required memory is multiplied by 1.2
+    mem_per_requestid = 1.2 * sum(sizeof.(Stest)) / GB #[GB] *for the safty, required memory is multiplied by 1.2
 
     max_num_of_processes_per_parallelcycle = floor(Int64, InputDict["MAX_MEM_PER_CPU"]/mem_per_requestid)
     estimated_downloadtime = now() + Second(round(3 * t1 * numofitr / nprocs()))
