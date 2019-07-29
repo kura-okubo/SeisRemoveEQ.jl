@@ -30,7 +30,6 @@ function map_removeEQ(dlid, InputDict::Dict)
     stalta_longtimewindow  =InputDict["stalta_longtimewindow"]
     stalta_threshold       =InputDict["stalta_threshold"]
     stalta_absoluteclip    =InputDict["stalta_absoluteclip"]
-    invert_tukey_α         =InputDict["invert_tukey_α"]
     max_wintaper_duration  =InputDict["max_wintaper_duration"]
     removal_shorttimewindow=InputDict["removal_shorttimewindow"]
     overlap                =InputDict["overlap"]
@@ -89,14 +88,14 @@ function map_removeEQ(dlid, InputDict::Dict)
                                         float(stalta_threshold), float(overlap), float(stalta_absoluteclip))
                 end
 
-                bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(invert_tukey_α), plot_kurtosis_α, max_wintaper_duration,
+                bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(plot_kurtosis_α), float(max_wintaper_duration),
                                 plot_boxheight, trunc(Int, plot_span), fodir, tstamp, tvec, IsSaveFig)
 
 
                 bt_getkurtosis += bt_1
                 bt_removeeq += bt_2 + bt_3 + btsta_1
 
-                println([bt_2, bt_3, btsta_1])
+                #println([bt_2, bt_3, btsta_1])
                 #if mod(dlid, round(0.1*NumofTimestamp)+1) == 0
                 #    println([bt_1, bt_2, btsta_1, bt_3])
                 #end
@@ -111,7 +110,7 @@ function map_removeEQ(dlid, InputDict::Dict)
 
                     bt_2 = @elapsed S1 = Remove_eq.detect_eq_stalta(S1, float(stalta_longtimewindow), float(removal_shorttimewindow),
                                         float(stalta_threshold), float(overlap))
-                    bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(invert_tukey_α), plot_kurtosis_α, max_wintaper_duration,
+                    bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(plot_kurtosis_α), float(max_wintaper_duration),
                                     plot_boxheight, trunc(Int, plot_span), fodir, tstamp, tvec, IsSaveFig)
 
                     #remove kurtosis for reduce size

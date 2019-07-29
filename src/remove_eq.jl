@@ -253,7 +253,7 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, plot_kurtosis_α
 
     end
 
-    println([tt1, tt2, tt3, tt4, tt5])
+    #println([tt1, tt2, tt3, tt4, tt5])
 
     if IsSaveFig
 

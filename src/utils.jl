@@ -93,7 +93,35 @@ default if input parameter is missing.
 
 function defaultinputdict!(InputDict::Dict)
 
-	
+	# default values
+	def = Dict()
+	def["finame"]				 	= "./input.jld2"
+	def["IsKurtosisRemoval"] 		= true
+	def["max_edgetaper_duration"] 	= 60 * 5
+	def["kurtosis_tw_sparse"] 		= 60
+	def["kurtosis_timewindow"] 		= 60*3
+	def["kurtosis_threshold"] 		= 2.0
+	def["IsSTALTARemoval"] 			= true
+	def["stalta_longtimewindow"] 	= 60*60*2
+	def["stalta_threshold"] 		= 1.2
+	def["stalta_absoluteclip"] 		= 1e20
+	def["max_wintaper_duration"] 	= 60 * 3
+	def["removal_shorttimewindow"] 	= 60 * 3
+	def["overlap"] 					= 60
+	def["IsSaveFig"] 				= false
+	def["plot_kurtosis_α"] 			= 1.2
+	def["plot_boxheight	"] 			= 1.5
+	def["plot_span"] 				= 100
+	def["fodir"] 					= "./dataset"
+    def["foname"] 					= "eq_removed.jld2"
+
+
+	for key in keys(def)
+		if !haskey(InputDict, key)
+			InputDict["$key"] = def["$key"]
+		end
+	end
+
 end
 
 

@@ -74,7 +74,6 @@ function fast_kurtosis_series(v::Array{Float64, 1}, TN::Int64, SparseWin::Int64)
     #t2 = @elapsed kurt = evaluate(spl, kurt_grid)
 
     #println([t0, t1, t2])
-    println([t0])
 
     # !DEPRECATED!: 1. compute mean value at each time window by numerical sequence
     # 2. use mapreduce to sum values
