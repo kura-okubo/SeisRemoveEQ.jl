@@ -15,6 +15,8 @@ function seisremoveEQ(InputDict::Dict)
 
 	Utils.initlogo()
 
+	Utils.defaultinputdict!(InputDict)
+
 	finame = InputDict["finame"]
 	fodir  = InputDict["fodir"]
 	foname = InputDict["foname"]

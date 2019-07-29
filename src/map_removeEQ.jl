@@ -23,11 +23,13 @@ function map_removeEQ(dlid, InputDict::Dict)
     finame                 =InputDict["finame"]
     IsKurtosisRemoval      =InputDict["IsKurtosisRemoval"]
     max_edgetaper_duration =InputDict["max_edgetaper_duration"]
+    kurtosis_tw_sparse     =InputDict["kurtosis_tw_sparse"]
     kurtosis_timewindow    =InputDict["kurtosis_timewindow"]
     kurtosis_threshold     =InputDict["kurtosis_threshold"]
     IsSTALTARemoval        =InputDict["IsSTALTARemoval"]
     stalta_longtimewindow  =InputDict["stalta_longtimewindow"]
     stalta_threshold       =InputDict["stalta_threshold"]
+    stalta_absoluteclip    =InputDict["stalta_absoluteclip"]
     invert_tukey_α         =InputDict["invert_tukey_α"]
     max_wintaper_duration  =InputDict["max_wintaper_duration"]
     removal_shorttimewindow=InputDict["removal_shorttimewindow"]
@@ -76,7 +78,7 @@ function map_removeEQ(dlid, InputDict::Dict)
 
             if IsKurtosisRemoval
                 # compute kurtosis and detect earthqukes
-                bt_1 = @elapsed S1 = Get_kurtosis.get_kurtosis(S1, float(kurtosis_timewindow))
+                bt_1 = @elapsed S1 = Get_kurtosis.get_kurtosis(S1, float(kurtosis_timewindow), float(kurtosis_tw_sparse))
                 bt_2 = @elapsed S1 = Remove_eq.detect_eq_kurtosis(S1, tw=float(removal_shorttimewindow), kurtosis_threshold=float(kurtosis_threshold), overlap=float(overlap))
 
                 btsta_1 = 0
@@ -84,7 +86,7 @@ function map_removeEQ(dlid, InputDict::Dict)
                 if IsSTALTARemoval
                     # detect earthquake and tremors by STA/LTA
                     btsta_1 = @elapsed S1 = Remove_eq.detect_eq_stalta(S1, float(stalta_longtimewindow), float(removal_shorttimewindow),
-                                        float(stalta_threshold), float(overlap))
+                                        float(stalta_threshold), float(overlap), float(stalta_absoluteclip))
                 end
 
                 bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(invert_tukey_α), plot_kurtosis_α, max_wintaper_duration,
@@ -94,6 +96,7 @@ function map_removeEQ(dlid, InputDict::Dict)
                 bt_getkurtosis += bt_1
                 bt_removeeq += bt_2 + bt_3 + btsta_1
 
+                println([bt_2, bt_3, btsta_1])
                 #if mod(dlid, round(0.1*NumofTimestamp)+1) == 0
                 #    println([bt_1, bt_2, btsta_1, bt_3])
                 #end

@@ -85,6 +85,18 @@ function printparams(param::Dict)
     end
 end
 
+"""
+defaultinputdict(InputDict::Dict)
+
+default if input parameter is missing.
+"""
+
+function defaultinputdict!(InputDict::Dict)
+
+	
+end
+
+
 
 """
 initlogo()

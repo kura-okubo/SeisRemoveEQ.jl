@@ -71,10 +71,11 @@ find earthquake and tremors by STA/LTA
     - `shortwin::Float64`  : short time window
     - `threshold::Float64` : STA/LTA threshold: if STA/LTA > threshold, the time window contains earthquake
     - `overlap::Float64`   : overlap of time window to control the margin of earthquake removal. (large overlap assigns large margin before and after earthquake.)
+    - `stalta_absoluteclip::Float64`   : clip if maximum absolute value exceeds this number (for the purpose of removing incoherent noise)
 
     original code written by Seth Olinger. For our purpose, overlap is applied for short time window
 """
-function detect_eq_stalta(data::SeisChannel,longWinLength::Float64, shortWinLength::Float64, threshold::Float64, overlap::Float64)
+function detect_eq_stalta(data::SeisChannel,longWinLength::Float64, shortWinLength::Float64, threshold::Float64, overlap::Float64, stalta_absoluteclip::Float64)
 
 
     #convert window lengths from seconds to samples
@@ -115,16 +116,16 @@ function detect_eq_stalta(data::SeisChannel,longWinLength::Float64, shortWinLeng
 
             #define chunk of data based on short window length and calculate short-term average
             shortTrace = @view trace[i+n:i+n+shortWin]
-            shortTraceWeight = eqweight[i+n:i+n+shortWin]
+            shortTraceWeight = @view eqweight[i+n:i+n+shortWin]
             #sta = mean(abs.(shortTrace))
             sta = StatsBase.mean(abs.(shortTrace), weights(shortTraceWeight))
             #sta = StatsBase.mean(abs.(shortTrace))
-
+            stamax = maximum(abs.(shortTrace))
             #calculate sta/lta ration
             staLta = sta/lta
 
             #record detection time if sta/lta ratio exceeds threshold
-            if staLta > threshold
+            if staLta > threshold || stamax > stalta_absoluteclip
                 #triggers[i+n] = 1
                 #this time window includes earthquake
                 for tt= i+n:i+n+shortWin
@@ -166,10 +167,11 @@ remove earthquake by kurtosis and STA/LTA threshold
     - `data::SeisData`    : SeisData from SeisIO
 
 """
-function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α::Float64, plot_kurtosis_α::Float64, max_taper_dur::Float64,
+function remove_eq(data::SeisChannel, data_origin::SeisChannel, plot_kurtosis_α::Float64, max_taper_dur::Float64,
     plot_boxheight::Float64, plot_span::Int64, fodir::String, tstamp::String, tvec::Array{Float64,1}, IsSaveFig::Bool)
 
     eqidlist = data.misc["eqtimewindow"][:]
+    nx = length(data.x)
 
     i = 1
 
@@ -178,14 +180,20 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
     y1 = []
     y2 = []
 
-    while i <= length(data.x)
+    tt1 = 0
+    tt2 = 0
+    tt3 = 0
+    tt4 = 0
+    tt5 = 0
+
+    while i <= nx
         if !eqidlist[i]
             push!(t1, tvec[i])
 
             t1id = i
 
             #find next id
-            nexttrueid = findfirst(x -> x == true, eqidlist[t1id:end])
+            tt1 += @elapsed nexttrueid = findfirst(x -> x == true, eqidlist[t1id:end])
 
             if isnothing(nexttrueid)
                 # all data is removed
@@ -207,30 +215,31 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
             invert_tukey_α = taper_length/tukey_length
 
             # define inverted tukey window
-            invtukeywin = -tukey(Int(tukey_length), invert_tukey_α) .+ 1
+            tt2 += @elapsed invtukeywin = -tukey(Int(tukey_length), invert_tukey_α) .+ 1
 
             # slice tukey window if it exceeds array bounds
-            if length(tvec[1:t1id])<max_wintaper_duration
-                left_overflow = (max_wintaper_duration-length(tvec[1:t1id]))+1
-                invtukeywin = invtukeywin[left_overflow+1:end]
+            tt3 += @elapsed if t1id < max_wintaper_duration
+                left_overflow = (max_wintaper_duration-t1id)+1
+                invtukeywin = @views invtukeywin[left_overflow+1:end]
                 # leftmost t
                 left = 1
             else
                 # full taper length
                 left = t1id - max_wintaper_duration
             end
-            if length(tvec[t2id+1:end])<max_wintaper_duration
-                right_overflow = (max_wintaper_duration-length(tvec[t2id:end]))+1
-                invtukeywin = invtukeywin[1:end-right_overflow]
+
+            tt4 += @elapsed if (nx - t2id + 1) <max_wintaper_duration
+                right_overflow = (max_wintaper_duration-(nx - t2id + 1))+1
+                invtukeywin = @views invtukeywin[1:end-right_overflow]
                 # rightmost t
-                right = length(tvec)
+                right = nx
             else
                 # full taper length
                 right = t2id + max_wintaper_duration
             end
 
             # apply tukey window
-            data.x[left:right] .*= invtukeywin
+            tt5 += @elapsed data.x[left:right] .*= invtukeywin
 
             #boxsize
             push!(y1, -plot_boxheight)
@@ -243,6 +252,8 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, invert_tukey_α:
         i += iinc
 
     end
+
+    println([tt1, tt2, tt3, tt4, tt5])
 
     if IsSaveFig
 
