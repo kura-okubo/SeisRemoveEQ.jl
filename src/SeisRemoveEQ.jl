@@ -1,13 +1,13 @@
 __precompile__()
 module SeisRemoveEQ
 
-using SeisIO, Distributed, Dates, Printf, JLD2, FileIO
-
 include("utils.jl")
 include("map_removeEQ.jl")
 using .Utils
 using .Map_removeEQ
 
+using Distributed 
+@everywhere using SeisIO, Dates, Printf, JLD2, FileIO
 
 export seisremoveEQ
 
