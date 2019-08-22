@@ -9,6 +9,17 @@ using SeisIO, Dates, JLD2, PlotlyJS, Printf, FileIO
 
 export map_removeEQ
 
+
+"""
+loaddata(finame, path)
+"""
+function loaddata(finame, path)
+    try
+        return FileIO.load(finame, path)
+    catch
+        return false;
+end
+
 """
     ParallelEQremoval(dlid, InputDict::Dict)
     remove earthquake and save it into jld2 file.
@@ -58,12 +69,6 @@ function map_removeEQ(dlid, InputDict::Dict)
         #S = t[joinpath(tstamp, st)]
         st1 = replace(st, "-"=>"")
 
-        loaddata(finame, path) = try
-            return FileIO.load(finame, path)
-        catch
-            return false;
-        end
-
         # load raw data
         Stemp = loaddata(finame, joinpath(tstamp, st1))
 
@@ -74,6 +79,7 @@ function map_removeEQ(dlid, InputDict::Dict)
 
         #convert if it's SeisChannel
         if Stemp isa SeisIO.SeisChannel
+            println("test")
             Stemp = SeisData(Stemp)
         end
 
