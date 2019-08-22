@@ -3,11 +3,11 @@ module SeisRemoveEQ
 
 include("utils.jl")
 include("map_removeEQ.jl")
-
 using .Utils
 using .Map_removeEQ
 
-using Dates, Printf, JLD2, FileIO, Distributed
+using Distributed
+@everywhere using SeisIO, Dates, Printf, JLD2, FileIO
 
 export seisremoveEQ
 
@@ -15,130 +15,67 @@ function seisremoveEQ(InputDict::Dict)
 
 	Utils.initlogo()
 
-	finame = InputDict["finame"]
-	fodir  = InputDict["fodir"]
-	foname = InputDict["foname"]
-
-	mkpath(fodir)
-	fopath=joinpath(fodir, foname*".jld2")
-	InputDict["fopath"] = fopath
-
-	#save data to fopath file
-	t = jldopen(finame)
-	jldopen(fopath, "w") do file
-		file["info/DLtimestamplist"] = t["info/DLtimestamplist"];
-		file["info/stationlist"]     = t["info/stationlist"];
-		file["info/starttime"]       = t["info/starttime"];
-		file["info/endtime"]         = t["info/endtime"];
-		file["info/DL_time_unit"]    = t["info/DL_time_unit"];
+	jldopen(InputDict["finame"], "r") do file
+		InputDict["DLtimestamplist"] = file["info/DLtimestamplist"];
+		InputDict["stationlist"] = file["info/stationlist"];
 	end
 
-	DLtimestamplist = t["info/DLtimestamplist"];
-	stationlist     = t["info/stationlist"];
-	NumofTimestamp  = length(DLtimestamplist)
-	JLD2.close(t)
+	fodir = InputDict["fodir"]
+	foname = InputDict["foname"]
+
+	if foname == InputDict["finame"]
+		error("Input name and output name is identical; which may cause overwrite. Please change the output name. Abort.")
+	end
+
+	mkpath(fodir)
+    fopath=joinpath(fodir, foname*".jld2")
+	InputDict["fopath"] = fopath
+
+	tmppath = joinpath(fodir, "./seisdownload_tmp")
+	InputDict["tmppath"] = tmppath
+	mkpath(tmppath)
+
+	Utils.defaultinputdict!(InputDict)
 
 	#print parameters
 	printparams(InputDict)
 
-	InputDict["DLtimestamplist"] = DLtimestamplist
-	InputDict["stationlist"] = stationlist
-	InputDict["NumofTimestamp"] = NumofTimestamp
-
-	#evaluate memory use
-	printstyled("---Start Test Process---\n"; color=:cyan, bold=true)
-
-	max_num_of_processes_per_parallelcycle = get_memoryuse(InputDict)
-
-	if max_num_of_processes_per_parallelcycle < 1
-		error("Memory allocation is not enought (currently $MAX_MEM_PER_CPU [GB]). Please inclease MAX_MEM_PER_CPU or decrease number of stations")
-	end
-
 	printstyled("---Start removing EQ---\n"; color=:cyan, bold=true)
 
-	# parallelize process by time stamp
-
-	file = jldopen(fopath, "r+")
-
-	E = []
-	bt_getkurtosis = 0.0
-	bt_removeeq = 0.0
-
-	if max_num_of_processes_per_parallelcycle >= NumofTimestamp
-		# one process cycle cover all time stamp
-		EE = pmap(x -> map_removeEQ(x, InputDict), 1:NumofTimestamp)
-
-		for i = 1:size(EE)[1]
-			push!(E, EE[i][1])
-			bt_getkurtosis += EE[i][2]
-		    bt_removeeq += EE[i][3]
-		end
-
-		# save data to jld2
-		for ii = 1:size(E)[1] #loop at each starttime
-			for jj = 1:size(E[1])[1] #loop at each station id
-
-			   requeststr =E[ii][jj].id
-			   varname = joinpath(DLtimestamplist[ii], requeststr)
-			   #save_SeisData2JLD2(fopath, varname, S[ii][jj])
-			   file[varname] = E[ii][jj]
+	# choose converting time window
+	mapidlist = []
+	for i = 1:length(InputDict["DLtimestamplist"])
+		y, jd = parse.(Int64, split(InputDict["DLtimestamplist"][i], ".")[1:2])
+		m, d = j2md(y,jd)
+		curdate=DateTime(y, m, d)
+		if !InputDict["IsStartendtime"]
+			# convert all time stamp
+			push!(mapidlist, i)
+		else
+			if curdate >= InputDict["starttime"] && curdate <= InputDict["endtime"]
+				push!(mapidlist, i)
+			else
+				continue
 			end
 		end
+ 	end
 
-	else
-		# processes by each max_num_of_processes_per_parallelcycle
-		pitr = 1
-
-		while pitr <=  NumofTimestamp
-
-			E = []
-
-		    startid1 = pitr
-		    startid2 = pitr + max_num_of_processes_per_parallelcycle - 1
-
-		    if startid1 == NumofTimestamp
-		        #use one
-		        EE = pmap(x -> map_removeEQ(x, InputDict), startid1:startid1)
-
-		    elseif startid2 <= NumofTimestamp
-		        #use all processors
-		        EE = pmap(x -> map_removeEQ(x, InputDict), startid1:startid2)
-
-		    else
-		        #use part of processors
-		        startid2 = startid1 + mod(NumofTimestamp, max_num_of_processes_per_parallelcycle) - 1
-		        println(startid2)
-		        EE = pmap(x -> map_removeEQ(x, InputDict), startid1:startid2)
-		    end
-
-			for i = 1:size(EE)[1]
-				push!(E, EE[i][1])
-				bt_getkurtosis += EE[i][2]
-			    bt_removeeq += EE[i][3]
-			end
-
-		    # save data to jld2
-		    for ii = 1:size(E)[1] #loop at each starttime
-		        for jj = 1:size(E[1])[1] #loop at each station id
-
-		            requeststr =E[ii][jj].id
-		            varname = joinpath(DLtimestamplist[startid1+ii-1], requeststr)
-		            #save_SeisData2JLD2(fopath, varname, S[ii][jj])
-		            file[varname] = E[ii][jj]
-
-		        end
-		    end
-
-		    pitr += max_num_of_processes_per_parallelcycle
-
-		end
+	if isempty(mapidlist)
+		error("no data is within start and endtime. abort.")
 	end
 
-	JLD2.close(file)
+	InputDict["NumofTimestamp"] = length(mapidlist)
+
+	t_removeeq = @elapsed pmap(x -> map_removeEQ(x, InputDict), mapidlist)
+
+	# convert intermediate file to prescibed file format (JLD2, ASDF, ...)
+	InputDict["DLtimestamplist_selected"] = InputDict["DLtimestamplist"][mapidlist]
+
+	t_convert = @elapsed convert_tmpfile(InputDict)
 
 	printstyled("---Summary---\n"; color=:cyan, bold=true)
-	println("time to get kurtosis =$(bt_getkurtosis)[s]")
-	println("time to remove EQ    =$(bt_removeeq)[s]")
+	println("time to remove EQ    =$(t_removeeq)[s]")
+	println("time to convert      =$(t_convert)[s]")
 	print("\nprocess done at:")
 	println(now())
 	str = "EQ is successfully removed from raw data:\nOutput = $fopath\n"

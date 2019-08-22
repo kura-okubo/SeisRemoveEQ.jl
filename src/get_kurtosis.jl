@@ -1,25 +1,27 @@
+__precompile__()
 module Get_kurtosis
 
 export get_kurtosis
 
-using Distributions, Statistics, Dierckx, SeisIO
+using Statistics, SeisIO
 
 """
-    get_kurtosis(data::SeisChannel,timewinlength::Float64=60)
+    get_kurtosis(data::SeisChannel,kurtsis_tw_sparse::Float64; timewinlength::Float64=60)
 
     compute kurtosis at each timewindow
 
 # Input:
-    - `data::SeisData`    : SeisData from SeisIO
+    - `data::SeisChannel`    : SeisData from SeisIO
+    - `kurtosis_tw_sparse::Float64` : time length of span for kurtosis time window
     - `timewinlength::Float64`  : time window to calculate kurtosis
-    - `kurtsis_tw_sparse::Float64` : time length of span for kurtosis time window
     kurtosis evaluation following Baillard et al.(2013)
 """
-function get_kurtosis(data::SeisChannel, timewinlength::Float64=60, kurtsis_tw_sparse::Float64)
+function get_kurtosis(data::SeisChannel, timewinlength::Float64=180.0, kurtosis_tw_sparse::Float64=60.0)
 
     #convert window lengths from seconds to samples
-    TimeWin = trunc(Int,timewinlength * data.fs)
-    data.misc["kurtosis"] = fast_kurtosis_series(data.x, TimeWin)
+    TimeWin = trunc(Int, timewinlength * data.fs)
+    SparseWin = trunc(Int, kurtosis_tw_sparse * data.fs)
+    data.misc["kurtosis"] = fast_kurtosis_series(data.x, TimeWin, SparseWin)
 
     return data
 
@@ -37,18 +39,42 @@ end
 
     kurtosis evaluation following Baillard et al.(2013)
 """
-function fast_kurtosis_series(v::Array{Float64, 1}, TN::Int64, kurtsis_tw_sparse::Float64)
+function fast_kurtosis_series(v::Array, TN::Int64, SparseWin::Int64)
 
     kurt = zeros(length(v))
     n = length(v)
     kurt_grid = 1:n
 
-    KTWSparse = kurtsis_tw_sparse
-
     if n < TN error("Kurtosis time window is larger than data length. Decrease time window.") end
+    if SparseWin > TN error("Sparse window is larger than Kurtosis time window. Decrease Kurtosis Sparse Window.") end
+
+    #1. compute kurtosis with sparse grid
+    kurt_sparse_grid = collect(TN:SparseWin:n)
+    if kurt_sparse_grid[end] != n
+        # fill up the edge of time series
+        push!(kurt_sparse_grid, n)
+    end
+
+    kurt_sparse = []
 
     cm2 = 0.0  # empirical 2nd centered moment (variance)
     cm4 = 0.0  # empirical 4th centered moment
+
+    t0 = @elapsed @simd for k = kurt_sparse_grid
+        Trace = @views v[k-TN+1:k]
+        m0 = mean(Trace)
+
+        cm2 = Statistics.varm(Trace, m0, corrected=false)
+        cm4 = fourthmoment(Trace, m0, corrected=false) #sum(xi - m)^4 / N
+        #push!(kurt_sparse, (cm4 / (cm2 * cm2)) - 3.0)
+        kurt[k] = (cm4 / (cm2 * cm2)) - 3.0
+    end
+
+    #2. interpolate kurtosis
+    #t1 = @elapsed spl = Spline1D(kurt_sparse_grid, kurt_sparse; k=1, bc="nearest") #cubic spline
+    #t2 = @elapsed kurt = evaluate(spl, kurt_grid)
+
+    #println([t0, t1, t2])
 
     # !DEPRECATED!: 1. compute mean value at each time window by numerical sequence
     # 2. use mapreduce to sum values
@@ -76,26 +102,26 @@ function fast_kurtosis_series(v::Array{Float64, 1}, TN::Int64, kurtsis_tw_sparse
     # end
 
     # first term
-    Trace = @views v[1:TN]
-    z2 = zeros(TN)
-    m0 = mean(Trace)
-
-    cm2 = Statistics.varm(Trace, m0, corrected=false)
-    cm4 = fourthmoment(Trace, m0, corrected=false)
-
-    # fill first part with kurtosis at TN
-    kurt[1:TN] .= (cm4 / (cm2 * cm2)) - 3.0
-
-    @simd for k = TN:n-1
-
-        diff1 = @inbounds @views (v[k-TN+1] - v[k+1])/TN
-        m1 = m0 - diff1
-        Trace = @views v[k-TN+2:k+1]
-        cm2 = Statistics.varm(Trace, m1, corrected=false)
-        cm4 = fourthmoment(Trace, m1, corrected=false) #sum(xi - m)^4 / N
-        kurt[k+1] = (cm4 / (cm2 * cm2)) - 3.0
-        m0 = m1
-    end
+    # Trace = @views v[1:TN]
+    # z2 = zeros(TN)
+    # m0 = mean(Trace)
+    #
+    # cm2 = Statistics.varm(Trace, m0, corrected=false)
+    # cm4 = fourthmoment(Trace, m0, corrected=false)
+    #
+    # # fill first part with kurtosis at TN
+    # kurt[1:TN] .= (cm4 / (cm2 * cm2)) - 3.0
+    #
+    # @simd for k = TN:n-1
+    #
+    #     diff1 = @inbounds @views (v[k-TN+1] - v[k+1])/TN
+    #     m1 = m0 - diff1
+    #     Trace = @views v[k-TN+2:k+1]
+    #     cm2 = Statistics.varm(Trace, m1, corrected=false)
+    #     cm4 = fourthmoment(Trace, m1, corrected=false) #sum(xi - m)^4 / N
+    #     kurt[k+1] = (cm4 / (cm2 * cm2)) - 3.0
+    #     m0 = m1
+    # end
 
     return kurt
 

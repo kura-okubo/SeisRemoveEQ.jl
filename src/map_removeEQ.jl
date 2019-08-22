@@ -1,15 +1,24 @@
+__precompile__()
 module Map_removeEQ
-
-export map_removeEQ
-
-using Dates, JLD2, DSP, PlotlyJS, Printf, ORCA, FileIO
-
-using SeisIO
 
 include("get_kurtosis.jl")
 include("remove_eq.jl")
 
 using .Get_kurtosis, .Remove_eq
+using SeisIO, Dates, JLD2, PlotlyJS, Printf, FileIO
+
+export map_removeEQ
+
+"""
+loaddata(finame, path)
+"""
+function loaddata(finame, path)
+    try
+        return FileIO.load(finame, path)
+    catch
+        return false;
+    end
+end
 
 """
     ParallelEQremoval(dlid, InputDict::Dict)
@@ -23,21 +32,25 @@ function map_removeEQ(dlid, InputDict::Dict)
     finame                 =InputDict["finame"]
     IsKurtosisRemoval      =InputDict["IsKurtosisRemoval"]
     max_edgetaper_duration =InputDict["max_edgetaper_duration"]
+    kurtosis_tw_sparse     =InputDict["kurtosis_tw_sparse"]
     kurtosis_timewindow    =InputDict["kurtosis_timewindow"]
     kurtosis_threshold     =InputDict["kurtosis_threshold"]
     IsSTALTARemoval        =InputDict["IsSTALTARemoval"]
     stalta_longtimewindow  =InputDict["stalta_longtimewindow"]
     stalta_threshold       =InputDict["stalta_threshold"]
-    invert_tukey_α         =InputDict["invert_tukey_α"]
+    stalta_absoluteclip    =InputDict["stalta_absoluteclip"]
+    max_wintaper_duration  =InputDict["max_wintaper_duration"]
     removal_shorttimewindow=InputDict["removal_shorttimewindow"]
     overlap                =InputDict["overlap"]
     plot_kurtosis_α        =InputDict["plot_kurtosis_α"]
     plot_boxheight         =InputDict["plot_boxheight"]
     plot_span              =InputDict["plot_span"]
+    plot_fmt               =InputDict["plot_fmt"]
     fodir                  =InputDict["fodir"]
     foname                 =InputDict["foname"]
     fopath                 =InputDict["fopath"]
     IsSaveFig              =InputDict["IsSaveFig"]
+
 
     DLtimestamplist        =InputDict["DLtimestamplist"]
     stationlist            =InputDict["stationlist"]
@@ -49,93 +62,124 @@ function map_removeEQ(dlid, InputDict::Dict)
         println(@sprintf("start process %s", tstamp))
     end
 
-    SRall = SeisData(length(stationlist))
-
-    icount = 0
-
     bt_getkurtosis = 0.0
     bt_removeeq = 0.0
 
     for st = stationlist
         #S = t[joinpath(tstamp, st)]
         st1 = replace(st, "-"=>"")
-        S = FileIO.load(finame, joinpath(tstamp, st1))
 
-        if S.misc["dlerror"] == 0
-            dt = 1/S.fs
-            #tvec = collect(0:S.t[2,1]-1) * dt ./ 60 ./ 60
-            tvec = collect(0:length(S.x)-1) * dt ./ 60 ./ 60
+        # load raw data
+        Stemp = loaddata(finame, joinpath(tstamp, st1))
 
-            #tapering to avoid instrumental edge artifacts
-            SeisIO.taper!(S,  t_max = max_edgetaper_duration, α=0.05)
-            S1 = deepcopy(S)
-
-            #set long window length to user input since last window of previous channel will have been adjusted
-            S1.misc["eqtimewindow"] = fill(true, length(S1.x))
-
-            if IsKurtosisRemoval
-                # compute kurtosis and detect earthqukes
-                bt_1 = @elapsed S1 = Get_kurtosis.get_kurtosis(S1, float(kurtosis_timewindow))
-                bt_2 = @elapsed S1 = Remove_eq.detect_eq_kurtosis(S1, float(removal_shorttimewindow), float(kurtosis_threshold), float(overlap))
-
-                btsta_1 = 0
-
-                if IsSTALTARemoval
-                    # detect earthquake and tremors by STA/LTA
-                    btsta_1 = @elapsed S1 = Remove_eq.detect_eq_stalta(S1, float(stalta_longtimewindow), float(removal_shorttimewindow),
-                                        float(stalta_threshold), float(overlap))
-                end
-
-                bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(invert_tukey_α), plot_kurtosis_α,
-                                plot_boxheight, trunc(Int, plot_span), fodir, tstamp, tvec, IsSaveFig)
-
-
-                bt_getkurtosis += bt_1
-                bt_removeeq += bt_2 + bt_3 + btsta_1
-
-                #if mod(dlid, round(0.1*NumofTimestamp)+1) == 0
-                #    println([bt_1, bt_2, btsta_1, bt_3])
-                #end
-
-                #remove kurtosis for reduce size
-                S1.misc["kurtosis"] = []
-                S1.misc["eqtimewindow"] = []
-
-            else
-                #only STA/LTA
-                if IsSTALTARemoval
-
-                    bt_2 = @elapsed S1 = Remove_eq.detect_eq_stalta(S1, float(stalta_longtimewindow), float(removal_shorttimewindow),
-                                        float(stalta_threshold), float(overlap))
-                    bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(invert_tukey_α), plot_kurtosis_α,
-                                    plot_boxheight, trunc(Int, plot_span), fodir, tstamp, tvec, IsSaveFig)
-
-                    #remove kurtosis for reduce size
-                    S1.misc["kurtosis"] = []
-                    S1.misc["eqtimewindow"] = []
-
-                    bt_getkurtosis += 0.0
-                    bt_removeeq += bt_2 + bt_3
-
-                else
-                    #no removal process.
-                    println("Both 'IsKurtosisRemoval' and 'IsKurtosisRemoval' are false. No removal process is executed.")
-                    exit(0)
-                end
-
-            end
-
-        else
-            #download error found: save as it is.
-            S1 = S
+        # skip if it does not exist
+        if Stemp == false
+            continue;
         end
 
-        icount += 1
-        SRall[icount] = S1
+        #convert if it's SeisChannel
+        if Stemp isa SeisIO.SeisChannel
+            Stemp = SeisData(Stemp)
+        end
+
+        SremEQ = SeisData()
+
+        #loop by SeisChannel and save into temporal wile
+        for Seisid = 1:Stemp.n
+
+            Schan = Stemp[Seisid]
+
+            if !haskey(Schan.misc, "dlerror")
+                if iszero(Schan.x)
+                    Schan.misc["dlerror"] = true
+                else
+                    Schan.misc["dlerror"] = false
+                end
+            end
+
+            if Schan.misc["dlerror"] == 0
+
+                dt = 1/Schan.fs
+                tvec = collect(0:length(Schan.x)-1) * dt ./ 60 ./ 60
+
+                #tapering to avoid instrumental edge artifacts
+                SeisIO.taper!(Schan,  t_max = max_edgetaper_duration, α=0.05)
+                S1 = deepcopy(Schan)
+
+                #set long window length to user input since last window of previous channel will have been adjusted
+                S1.misc["eqtimewindow"] = fill(true, length(S1.x))
+
+                if IsKurtosisRemoval
+                    # compute kurtosis and detect
+                    bt_1 = @elapsed S1 = Get_kurtosis.get_kurtosis(S1, float(kurtosis_timewindow), float(kurtosis_tw_sparse))
+
+                    bt_2 = @elapsed S1 = Remove_eq.detect_eq_kurtosis(S1, tw=float(removal_shorttimewindow), kurtosis_threshold=float(kurtosis_threshold), overlap=float(overlap))
+
+                    btsta_1 = 0
+
+                    if IsSTALTARemoval
+                        # detect earthquake and tremors by STA/LTA
+                        btsta_1 = @elapsed S1 = Remove_eq.detect_eq_stalta(S1, float(stalta_longtimewindow), float(removal_shorttimewindow),
+                                            float(stalta_threshold), float(overlap), float(stalta_absoluteclip))
+                    end
+
+                    bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, Schan, float(plot_kurtosis_α), float(max_wintaper_duration),
+                                    plot_boxheight, trunc(Int, plot_span), plot_fmt, fodir, tstamp, tvec, IsSaveFig)
+
+                    bt_getkurtosis += bt_1
+                    bt_removeeq += bt_2 + bt_3 + btsta_1
+
+                    #println([bt_2, bt_3, btsta_1])
+                    #if mod(dlid, round(0.1*NumofTimestamp)+1) == 0
+                    #    println([bt_1, bt_2, btsta_1, bt_3])
+                    #end
+
+                else
+                    #only STA/LTA
+                    if IsSTALTARemoval
+
+                        data.misc["kurtosis"] = zeros(length(S1.x))
+
+                        bt_2 = @elapsed S1 = Remove_eq.detect_eq_stalta(S1, float(stalta_longtimewindow), float(removal_shorttimewindow),
+                                            float(stalta_threshold), float(overlap))
+                        bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(plot_kurtosis_α), float(max_wintaper_duration),
+                                        plot_boxheight, trunc(Int, plot_span), plot_fmt, fodir, tstamp, tvec, IsSaveFig)
+
+
+                        bt_getkurtosis += 0.0
+                        bt_removeeq += bt_2 + bt_3
+
+                    else
+                        #no removal process.
+                        @warn "Both 'IsKurtosisRemoval' and 'IsKurtosisRemoval' are false. No removal process is executed. Abort."
+                        exit(0)
+                    end
+
+                end
+
+                #it's not allowed to save this into binary;
+                delete!(S1.misc, "eqtimewindow")
+                delete!(S1.misc, "kurt")
+
+            else
+                #download error found: save as it is.
+                S1 = Schan
+            end
+
+            SremEQ += S1
+
+        end
+
+
+        # if some of SeisChannels in Stemp have a data, save temp file
+        y, jd = parse.(Int64, split(InputDict["DLtimestamplist"][dlid], ".")[1:2])
+        fname_out = join([tstamp, st1, "FDSNWS","dat"], '.')
+        # save as intermediate binary file
+        t_write = @elapsed SeisIO.wseis(InputDict["tmppath"]*"/"*fname_out, SremEQ)
 
     end
 
-    return (SRall, bt_getkurtosis, bt_removeeq)
+    return nothing
 end
 
 end
