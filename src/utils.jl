@@ -23,11 +23,17 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 
 	file = jldopen(fopath, "w")
 
-	file["info/DLtimestamplist"] = t["info/DLtimestamplist"];
 	file["info/stationlist"]     = t["info/stationlist"];
-	file["info/starttime"]       = t["info/starttime"];
-	file["info/endtime"]         = t["info/endtime"];
-	file["info/DL_time_unit"]    = t["info/DL_time_unit"];
+
+	if InputDict["IsStartendtime"]
+		file["info/DLtimestamplist"] = InputDict["DLtimestamplist_selected"];
+		file["info/starttime"]       = InputDict["starttime"];
+		file["info/endtime"]         = InputDict["endtime"];
+	else
+		file["info/DLtimestamplist"] = t["info/DLtimestamplist"];
+		file["info/starttime"]       = t["info/starttime"];
+		file["info/endtime"]         = t["info/endtime"];
+	end
 
 	JLD2.close(t)
 

@@ -6,7 +6,7 @@ include("map_removeEQ.jl")
 using .Utils
 using .Map_removeEQ
 
-using Distributed 
+using Distributed
 @everywhere using SeisIO, Dates, Printf, JLD2, FileIO
 
 export seisremoveEQ
@@ -69,6 +69,8 @@ function seisremoveEQ(InputDict::Dict)
 	t_removeeq = @elapsed pmap(x -> map_removeEQ(x, InputDict), mapidlist)
 
 	# convert intermediate file to prescibed file format (JLD2, ASDF, ...)
+	InputDict["DLtimestamplist_selected"] = InputDict["DLtimestamplist"][mapidlist]
+
 	t_convert = @elapsed convert_tmpfile(InputDict)
 
 	printstyled("---Summary---\n"; color=:cyan, bold=true)
