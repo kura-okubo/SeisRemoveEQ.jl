@@ -127,9 +127,14 @@ printparams(param::Dict)
 print parameters
 """
 function printparams(param::Dict)
-    printstyled("---Input Parameters---\n"; color=:cyan, bold=true)
+    printstyled("-----------Input Parameters-----------\n"; color=:cyan, bold=true)
     for key in keys(param)
-        println(@sprintf("%-24s = %-10s", key, string(param["$key"])))
+        if length(string(param["$key"])) > 60
+            param_str = string(param["$key"])[1:30]*"..."
+        else
+            param_str = string(param["$key"])
+        end
+        println(@sprintf("%-24s = %-10s", key, param_str))
     end
 end
 

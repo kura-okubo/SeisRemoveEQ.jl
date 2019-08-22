@@ -3,12 +3,11 @@ module Map_removeEQ
 
 export map_removeEQ
 
-using SeisIO, Dates, JLD2, PlotlyJS, Printf, FileIO
-
 include("get_kurtosis.jl")
 include("remove_eq.jl")
 
 using .Get_kurtosis, .Remove_eq
+using SeisIO, Dates, JLD2, PlotlyJS, Printf, FileIO
 
 """
     ParallelEQremoval(dlid, InputDict::Dict)
