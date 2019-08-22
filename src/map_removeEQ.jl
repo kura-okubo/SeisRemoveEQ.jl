@@ -79,7 +79,6 @@ function map_removeEQ(dlid, InputDict::Dict)
 
         #convert if it's SeisChannel
         if Stemp isa SeisIO.SeisChannel
-            println("test")
             Stemp = SeisData(Stemp)
         end
 
