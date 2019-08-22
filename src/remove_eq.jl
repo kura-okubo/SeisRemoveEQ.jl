@@ -2,7 +2,7 @@ module Remove_eq
 
 export detect_eq_kurtosis, stalta, remove_eq
 
-using StatsBase, ORCA, SeisIO, Printf, PlotlyJS
+using SeisIO, StatsBase, ORCA, SeisIO, Printf, PlotlyJS
 
 
 """
