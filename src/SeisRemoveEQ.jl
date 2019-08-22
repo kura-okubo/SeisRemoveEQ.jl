@@ -45,7 +45,7 @@ function seisremoveEQ(InputDict::Dict)
 	# choose converting time window
 	mapidlist = []
 	for i = 1:length(InputDict["DLtimestamplist"])
-		y, jd = parse.(Int64, split(InputDict["DLtimestamplist"][i], "."))
+		y, jd = parse.(Int64, split(InputDict["DLtimestamplist"][i], ".")[1:2])
 		m, d = j2md(y,jd)
 		curdate=DateTime(y, m, d)
 		if !InputDict["IsStartendtime"]
