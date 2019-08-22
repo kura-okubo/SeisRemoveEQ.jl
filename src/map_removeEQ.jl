@@ -1,13 +1,13 @@
 __precompile__()
 module Map_removeEQ
 
-export map_removeEQ
-
 include("get_kurtosis.jl")
 include("remove_eq.jl")
 
 using .Get_kurtosis, .Remove_eq
 using SeisIO, Dates, JLD2, PlotlyJS, Printf, FileIO
+
+export map_removeEQ
 
 """
     ParallelEQremoval(dlid, InputDict::Dict)
