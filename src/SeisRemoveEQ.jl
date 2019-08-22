@@ -7,7 +7,7 @@ include("map_removeEQ.jl")
 using .Utils
 using .Map_removeEQ
 
-using SeisIO, Dates, Printf, JLD2, FileIO
+using Distributed, SeisIO, Dates, Printf, JLD2, FileIO
 
 export seisremoveEQ
 
