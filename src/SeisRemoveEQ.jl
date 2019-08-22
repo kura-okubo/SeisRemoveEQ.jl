@@ -3,8 +3,8 @@ module SeisRemoveEQ
 
 @everywhere include("utils.jl")
 @everywhere include("map_removeEQ.jl")
-@everywhere using SeisIO .Utils .Map_removeEQ
-
+@everywhere using .Utils .Map_removeEQ
+@everywhere using SeisIO
 using Distributed, Dates, Printf, JLD2, FileIO
 
 export seisremoveEQ
