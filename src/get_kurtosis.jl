@@ -1,3 +1,4 @@
+__precompile__()
 module Get_kurtosis
 
 export get_kurtosis

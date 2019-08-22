@@ -1,3 +1,4 @@
+__precompile__()
 module Map_removeEQ
 
 export map_removeEQ

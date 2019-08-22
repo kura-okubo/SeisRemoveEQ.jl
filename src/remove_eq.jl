@@ -1,3 +1,4 @@
+__precompile__()
 module Remove_eq
 
 export detect_eq_kurtosis, stalta, remove_eq
