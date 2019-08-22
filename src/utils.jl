@@ -1,86 +1,125 @@
 __precompile__()
 module Utils
 
-export get_memoryuse, initlogo, printparams
+export convert_tmpfile, defaultinputdict!, printparams, initlogo
 
-include("map_removeEQ.jl")
-using .Map_removeEQ
+using SeisIO, Printf, Dates, JLD2, FileIO
 
-using SeisIO, Printf, Dates, JLD2, FileIO, Distributed
-
-
-
-const KB = 1024.0 #[bytes]
-const MB = 1024.0 * KB
-const GB = 1024.0 * MB
 
 """
-get_memoryuse(InputDict::Dict)
+convert_tmpfile(InputDict::Dict)
 
-evaluate memory use and estimate computational time
+convert temporal file in "./seisdownload_tmp" to prescribed format.
+It has salvage mode, which allows to compile the temporal files in the case of failing during the download.
 """
-function get_memoryuse(InputDict::Dict)
+function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 
-    trial_id = 1
+    println("-------START CONVERTING-------------")
 
-	Stest = []
+	# save data to fopath file
+	fopath = InputDict["fopath"]
 
-    while true
-        global t1 = @elapsed EE = map_removeEQ(trial_id, InputDict) #[s]
+	t = jldopen(InputDict["finame"])
 
-		Stest = []
+	jldopen(fopath, "w") do file
+		file["info/DLtimestamplist"] = t["info/DLtimestamplist"];
+		file["info/stationlist"]     = t["info/stationlist"];
+		file["info/starttime"]       = t["info/starttime"];
+		file["info/endtime"]         = t["info/endtime"];
+		file["info/DL_time_unit"]    = t["info/DL_time_unit"];
+	end
 
-        for i = 1:length(EE[1])
-			Seistemp =  #SeisData
-			push!(Stest, EE[1][i])
-		end
+	JLD2.close(t)
 
-		# look at only first channel of SeisData
-    	dl = [Stest[i][1].misc["dlerror"] for i in 1:length(Stest)]
+	# find all temporal files
+    paths = ls(InputDict["tmppath"])
+    fmt = InputDict["outputformat"]
 
-        if issubset(0, dl)
-            break;
-        else
-            trial_id += 1
+    file = jldopen(fopath, "w")
+
+    stationlist     = []
+    DLtimestamplist = []
+    varnamelist     = []
+
+	IsIsolateComponents = InputDict["IsIsolateComponents"]
+	isostationlist = []
+
+    for path in paths
+        #println(path)
+
+		# split path
+		tmpname = split(path, "/")[end]
+		y, d, net, sta, loc, cha, _, _ = split(tmpname, ".")
+		iso_stationinfo = (join([y, d, net, sta, loc], "-"), cha)
+		#println(iso_stationinfo)
+
+        try
+            S = SeisIO.rseis(path)[1]
+            #println(S)
+
+            for ii = 1:S.n #loop at each seis channel
+
+				# check channel isolation
+				conflictsta = filter(x -> x[1]==iso_stationinfo[1] && string(x[2][end][end])==string(iso_stationinfo[2][end]), isostationlist)
+				#println(conflictsta)
+				if !isempty(conflictsta)
+					# here this channel has conflicting channel such as same day, same components but different channel.
+					# if IsIsolateComponents == true, skip to avoid multiple stations for the purpose of cross-correlation.
+					if IsIsolateComponents
+						sta1 = join([iso_stationinfo[1], iso_stationinfo[2]], "-")
+						sta2 = join([conflictsta[1][1], conflictsta[1][2]], "-")
+						txt = @sprintf("Two identical location but different channel were found.\n%s :%s: Discard %s.",
+									sta1, sta2, sta1)
+						println(txt)
+						#rm(path)
+						continue;
+					end
+				end
+
+				# update isostationlist
+				push!(isostationlist, iso_stationinfo)
+
+                # make station list
+                staid = S[ii].id
+
+                # save data (checking whether it's already in the jld2 because it causes an error)
+                #parse info
+                s_str = string(u2d(S[ii].t[1,2]*1e-6))
+
+                # select output format
+                if fmt == "JLD2"
+                    yj = parse(Int64, s_str[1:4])
+                    mj = parse(Int64, s_str[6:7])
+                    dj = parse(Int64, s_str[9:10])
+                    tj = string(s_str)[11:19]
+
+                    djm2j = md2j(yj, mj, dj)
+                    groupname = string(yj)*"."*string(djm2j)*"."*tj #Year_Julianday_Starttime
+                    varname = joinpath(groupname, staid)
+
+                    if isempty(filter(x -> x==varname, varnamelist))
+                        push!(varnamelist, varname)
+                        file[varname] = S[ii]
+                    end
+                    # @info "save data $varname"
+                else
+                    error("output format in $fmt is not implemented yet.")
+                end
+            end
+
+			#rm(path)
+
+        catch y
+            println(y)
         end
-
-		if trial_id > length(InputDict["DLtimestamplist"])
-			error("all atempt was failed.")
-		end
     end
 
-    numofitr = InputDict["NumofTimestamp"] # number of iteration by parallel processing
-    if trial_id == numofitr - 1
-        error("all requests you submitted with input dictionary was failed. Please check the station availability in your request.")
-    end
+    JLD2.close(file)
 
-    mem_per_requestid = 1.2 * sum(sizeof.(Stest)) / GB #[GB] *for the safty, required memory is multiplied by 1.2
+	#rm(InputDict["tmppath"], recursive=true, force=true)
 
-    max_num_of_processes_per_parallelcycle = floor(Int64, InputDict["MAX_MEM_PER_CPU"]/mem_per_requestid)
-    estimated_downloadtime = now() + Second(round(3 * t1 * numofitr / nprocs()))
-
-	printstyled("---EQ REMOVAL STATS SUMMARY---\n"; color=:cyan, bold=true)
-
-    println(@sprintf("Number of processes is %d.", nprocs()))
-
-    totaldownloadsize = mem_per_requestid * numofitr
-    if totaldownloadsize < MB
-        totaldownloadsize = totaldownloadsize * GB / MB #[MB]
-        sizeunit = "MB"
-    else
-        sizeunit = "GB"
-    end
-
-	println(@sprintf("One process returns %4.2e [%s] of dataset so maximum num of parallel processes is %d.",
-	 			totaldownloadsize, sizeunit, max_num_of_processes_per_parallelcycle))
-	println(@sprintf("Download will finish at %s.", round(estimated_downloadtime, Dates.Second(1))))
-    println("*We have a time lag with processing time above, like in 10 minutes or so.*")
-    println("*This estimation also changes if some processes fail and are skipped.*")
-
-    return max_num_of_processes_per_parallelcycle
-
+    return nothing
 end
-
 
 """
 printparams(param::Dict)
@@ -99,7 +138,6 @@ defaultinputdict(InputDict::Dict)
 
 default if input parameter is missing.
 """
-
 function defaultinputdict!(InputDict::Dict)
 
 	# default values
@@ -117,13 +155,15 @@ function defaultinputdict!(InputDict::Dict)
 	def["max_wintaper_duration"] 	= 60 * 3
 	def["removal_shorttimewindow"] 	= 60 * 3
 	def["overlap"] 					= 60
+	def["IsIsolateComponents"] 		= false
 	def["IsSaveFig"] 				= false
 	def["plot_kurtosis_α"] 			= 1.2
 	def["plot_boxheight	"] 			= 1.5
 	def["plot_span"] 				= 100
+	def["outputformat"]				= "JLD2"
+	def["IsStartendtime"] 			= false
 	def["fodir"] 					= "./dataset"
     def["foname"] 					= "eq_removed.jld2"
-
 
 	for key in keys(def)
 		if !haskey(InputDict, key)

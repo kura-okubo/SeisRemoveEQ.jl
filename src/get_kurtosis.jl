@@ -10,7 +10,7 @@ using Distributions, Statistics, Dierckx, SeisIO
     compute kurtosis at each timewindow
 
 # Input:
-    - `data::SeisData`    : SeisData from SeisIO
+    - `data::SeisChannel`    : SeisData from SeisIO
     - `kurtosis_tw_sparse::Float64` : time length of span for kurtosis time window
     - `timewinlength::Float64`  : time window to calculate kurtosis
     kurtosis evaluation following Baillard et al.(2013)
