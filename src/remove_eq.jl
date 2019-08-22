@@ -209,11 +209,11 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, plot_kurtosis_α
 
             if isnothing(nexttrueid)
                 # all data is removed
-                t2id = length(eqidlist)
-                iinc = length(eqidlist)
+                t2id = nx
+                iinc = nx
             else
-                t2id = t1id + nexttrueid
-                iinc = t2id - i
+                t2id = (t1id - 1) + nexttrueid - 1 # first false id to end false id
+                iinc = t2id - i + 1 # first true as end of false + 1
             end
 
             push!(t2, tvec[t2id])
@@ -230,7 +230,7 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, plot_kurtosis_α
             tt2 += @elapsed invtukeywin = -tukey(Int(tukey_length), invert_tukey_α) .+ 1
 
             # slice tukey window if it exceeds array bounds
-            tt3 += @elapsed if t1id < max_wintaper_duration
+            tt3 += @elapsed if t1id < max_wintaper_duration + 1
                 left_overflow = (max_wintaper_duration-t1id)+1
                 invtukeywin = @views invtukeywin[left_overflow+1:end]
                 # leftmost t
@@ -240,7 +240,7 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, plot_kurtosis_α
                 left = t1id - max_wintaper_duration
             end
 
-            tt4 += @elapsed if (nx - t2id + 1) <max_wintaper_duration
+            tt4 += @elapsed if (nx - t2id + 1) < max_wintaper_duration + 1
                 right_overflow = (max_wintaper_duration-(nx - t2id + 1))+1
                 invtukeywin = @views invtukeywin[1:end-right_overflow]
                 # rightmost t
