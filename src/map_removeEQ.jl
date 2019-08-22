@@ -59,9 +59,7 @@ function map_removeEQ(dlid, InputDict::Dict)
         st1 = replace(st, "-"=>"")
 
         loaddata(finame, path) = try
-            S = SeisData()
-            S = FileIO.load(finame, path)
-            return S
+            return FileIO.load(finame, path)
         catch
             return false;
         end
