@@ -21,21 +21,19 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 
 	t = jldopen(InputDict["finame"])
 
-	jldopen(fopath, "w") do file
-		file["info/DLtimestamplist"] = t["info/DLtimestamplist"];
-		file["info/stationlist"]     = t["info/stationlist"];
-		file["info/starttime"]       = t["info/starttime"];
-		file["info/endtime"]         = t["info/endtime"];
-		file["info/DL_time_unit"]    = t["info/DL_time_unit"];
-	end
+	file = jldopen(fopath, "w")
+
+	file["info/DLtimestamplist"] = t["info/DLtimestamplist"];
+	file["info/stationlist"]     = t["info/stationlist"];
+	file["info/starttime"]       = t["info/starttime"];
+	file["info/endtime"]         = t["info/endtime"];
+	file["info/DL_time_unit"]    = t["info/DL_time_unit"];
 
 	JLD2.close(t)
 
 	# find all temporal files
     paths = ls(InputDict["tmppath"])
     fmt = InputDict["outputformat"]
-
-    file = jldopen(fopath, "w")
 
     stationlist     = []
     DLtimestamplist = []

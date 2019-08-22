@@ -5,7 +5,6 @@ export detect_eq_kurtosis, stalta, remove_eq
 
 using SeisIO, DSP, StatsBase, ORCA, SeisIO, Printf, PlotlyJS
 
-
 """
     detect_eq_kurtosis(data::SeisChannel,tw::Float64=60.0, threshold::Float64=3.0, overlap::Float64=30)
 
