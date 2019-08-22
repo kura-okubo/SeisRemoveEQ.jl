@@ -69,7 +69,11 @@ function seisremoveEQ(InputDict::Dict)
 	t_removeeq = @elapsed pmap(x -> map_removeEQ(x, InputDict), mapidlist)
 
 	# convert intermediate file to prescibed file format (JLD2, ASDF, ...)
+<<<<<<< HEAD
 	InputDict["DLtimestamplist_selected"] = InputDict["DLtimestamplist"][mapidlist]
+=======
+	InputDict["DLtimestamplist_selected"] = InputDict["DLtimestamplist_selected"][mapidlist]
+>>>>>>> 3994079b1280738c805ccc1974e34e75500ba894
 
 	t_convert = @elapsed convert_tmpfile(InputDict)
 
