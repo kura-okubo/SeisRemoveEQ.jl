@@ -6,6 +6,7 @@ include("remove_eq.jl")
 
 using .Get_kurtosis, .Remove_eq
 using SeisIO, Dates, JLD2, PlotlyJS, Printf, FileIO
+using Suppressor
 
 export map_removeEQ
 
@@ -14,7 +15,7 @@ loaddata(finame, path)
 """
 function loaddata(finame, path)
     try
-        return FileIO.load(finame, path)
+        @suppress_err return FileIO.load(finame, path)
     catch
         return false;
     end
@@ -97,13 +98,21 @@ function map_removeEQ(dlid, InputDict::Dict)
                 end
             end
 
+            #---Transient error on combination between download margin and resampling---#
+            # S.t may contain index 0 in t[:, 1]. in that case , this causes the error on later part, so discard that data.
+            if any(Schan.t[:,1] .== 0)
+                Schan.misc["dlerror"] = true
+            end
+            #---------------------------------------------------------------------------#
+
             if Schan.misc["dlerror"] == 0
 
                 dt = 1/Schan.fs
                 tvec = collect(0:length(Schan.x)-1) * dt ./ 60 ./ 60
 
                 #tapering to avoid instrumental edge artifacts
-                SeisIO.taper!(Schan,  t_max = max_edgetaper_duration, α=0.05)
+                #SeisIO.taper!(Schan,  t_max = max_edgetaper_duration, α=0.05) this is already done by download margin
+
                 S1 = deepcopy(Schan)
 
                 #set long window length to user input since last window of previous channel will have been adjusted
