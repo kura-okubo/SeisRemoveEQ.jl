@@ -9,7 +9,6 @@ using SeisIO, Dates, JLD2, PlotlyJS, Printf, FileIO
 
 export map_removeEQ
 
-
 """
 loaddata(finame, path)
 """
@@ -18,6 +17,7 @@ function loaddata(finame, path)
         return FileIO.load(finame, path)
     catch
         return false;
+    end
 end
 
 """
