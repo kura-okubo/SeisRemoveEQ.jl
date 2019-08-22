@@ -107,7 +107,7 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
                 end
             end
 
-			#rm(path)
+			rm(path)
 
         catch y
             println(y)
@@ -116,7 +116,7 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 
     JLD2.close(file)
 
-	#rm(InputDict["tmppath"], recursive=true, force=true)
+	rm(InputDict["tmppath"], recursive=true, force=true)
 
     return nothing
 end
