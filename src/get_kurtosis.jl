@@ -2,7 +2,7 @@ module Get_kurtosis
 
 export get_kurtosis
 
-using Distributions, Statistics, Dierckx, SeisIO
+using Statistics, SeisIO
 
 """
     get_kurtosis(data::SeisChannel,kurtsis_tw_sparse::Float64; timewinlength::Float64=60)

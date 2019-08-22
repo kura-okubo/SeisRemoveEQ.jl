@@ -2,7 +2,7 @@ module Map_removeEQ
 
 export map_removeEQ
 
-using SeisIO, Dates, JLD2, DSP, PlotlyJS, Printf, FileIO
+using SeisIO, Dates, JLD2, PlotlyJS, Printf, FileIO
 
 include("get_kurtosis.jl")
 include("remove_eq.jl")

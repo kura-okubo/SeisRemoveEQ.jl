@@ -2,7 +2,7 @@ module Remove_eq
 
 export detect_eq_kurtosis, stalta, remove_eq
 
-using DSP, Distributions, Statistics, StatsBase, ORCA, SeisIO, Printf, PlotlyJS
+using StatsBase, ORCA, SeisIO, Printf, PlotlyJS
 
 
 """
@@ -285,7 +285,7 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, plot_kurtosis_α
         else
             kurtnormalize = maximum(filter(!isnan, data.misc["kurtosis"][kurtid]))
         end
-        
+
         trace3 = scatter(;x=tvec[kurtid], y=data.misc["kurtosis"][kurtid] ./ kurtnormalize .* plot_kurtosis_α,
          line_color="red", mode="lines", name="kurtosis")
 
