@@ -53,7 +53,16 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 
 		# split path
 		tmpname = split(path, "/")[end]
-		y, d, net, sta, loc, cha, _, _ = split(tmpname, ".")
+
+		ftmpname = split(tmpname, ".")
+		if occursin(":", ftmpname[3])
+			# format would be y, jd, T00:00:00, sta, loc, cha
+			y, d, tmpT, net, sta, loc, cha = split(tmpname, ".")
+		elseif !occursin(":", ftmpname[3]) && IsIsolateComponents == true
+			@warn "format of tmp file is not y, jd, time, sta, loc, cha. Turn off IsIsolateComponents."
+			IsIsolateComponents = false
+		end
+
 		iso_stationinfo = (join([y, d, net, sta, loc], "-"), cha)
 		#println(iso_stationinfo)
 
@@ -114,7 +123,7 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 			rm(path)
 
         catch y
-            println(y)
+            #println(y)
         end
     end
 

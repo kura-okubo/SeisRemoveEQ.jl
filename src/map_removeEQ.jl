@@ -168,7 +168,7 @@ function map_removeEQ(dlid, InputDict::Dict)
 
                 #it's not allowed to save this into binary;
                 delete!(S1.misc, "eqtimewindow")
-                delete!(S1.misc, "kurt")
+                delete!(S1.misc, "kurtosis")
 
             else
                 #download error found: save as it is.
