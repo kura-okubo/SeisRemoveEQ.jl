@@ -55,7 +55,7 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 		tmpname = split(path, "/")[end]
 
 		ftmpname = split(tmpname, ".")
-		if occursin(":", ftmpname[3])
+		if occursin("-", ftmpname[3])
 			# format would be y, jd, T00:00:00, sta, loc, cha
 			y, d, tmpT, net, sta, loc, cha = split(tmpname, ".")
 			iso_stationinfo = (join([y, d, net, sta, loc], "-"), cha)
