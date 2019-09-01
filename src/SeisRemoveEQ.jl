@@ -31,7 +31,7 @@ function seisremoveEQ(InputDict::Dict)
     fopath=joinpath(fodir, foname*".jld2")
 	InputDict["fopath"] = fopath
 
-	tmppath = joinpath(fodir, "./seisdownload_tmp")
+	tmppath = joinpath(fodir, "./seisremoveeq_tmp")
 	InputDict["tmppath"] = tmppath
 	mkpath(tmppath)
 

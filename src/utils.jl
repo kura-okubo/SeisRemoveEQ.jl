@@ -58,12 +58,14 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 		if occursin(":", ftmpname[3])
 			# format would be y, jd, T00:00:00, sta, loc, cha
 			y, d, tmpT, net, sta, loc, cha = split(tmpname, ".")
-		elseif !occursin(":", ftmpname[3]) && IsIsolateComponents == true
+			iso_stationinfo = (join([y, d, net, sta, loc], "-"), cha)
+
+		elseif !occursin("-", ftmpname[3]) && IsIsolateComponents == true
 			@warn "format of tmp file is not y, jd, time, sta, loc, cha. Turn off IsIsolateComponents."
 			IsIsolateComponents = false
+			iso_stationinfo = []
 		end
 
-		iso_stationinfo = (join([y, d, net, sta, loc], "-"), cha)
 		#println(iso_stationinfo)
 
         try
@@ -72,8 +74,11 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 
             for ii = 1:S.n #loop at each seis channel
 
-				# check channel isolation
-				conflictsta = filter(x -> x[1]==iso_stationinfo[1] && string(x[2][end][end])==string(iso_stationinfo[2][end]), isostationlist)
+				if IsIsolateComponents
+					# check channel isolation
+					conflictsta = filter(x -> x[1]==iso_stationinfo[1] && string(x[2][end][end])==string(iso_stationinfo[2][end]), isostationlist)
+				end
+
 				#println(conflictsta)
 				if !isempty(conflictsta)
 					# here this channel has conflicting channel such as same day, same components but different channel.
@@ -89,8 +94,10 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 					end
 				end
 
-				# update isostationlist
-				push!(isostationlist, iso_stationinfo)
+				if IsIsolateComponents
+					# update isostationlist
+					push!(isostationlist, iso_stationinfo)
+				end
 
                 # make station list
                 staid = S[ii].id

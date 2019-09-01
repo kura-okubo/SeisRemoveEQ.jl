@@ -182,7 +182,8 @@ function map_removeEQ(dlid, InputDict::Dict)
 
         # if some of SeisChannels in Stemp have a data, save temp file
         y, jd = parse.(Int64, split(InputDict["DLtimestamplist"][dlid], ".")[1:2])
-        fname_out = join([tstamp, st1, "FDSNWS","dat"], '.')
+        tstamp_fname = replace(tstamp, ":" => "-")
+        fname_out = join([tstamp_fname, st1, "FDSNWS","dat"], '.')
         # save as intermediate binary file
         t_write = @elapsed SeisIO.wseis(InputDict["tmppath"]*"/"*fname_out, SremEQ)
 
