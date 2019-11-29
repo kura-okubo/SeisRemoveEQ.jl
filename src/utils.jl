@@ -23,6 +23,7 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 
 	file = jldopen(fopath, "w")
 
+	#!!!should be debuged because of Isocomponents!!!#
 	file["info/stationlist"]     = t["info/stationlist"];
 
 	if InputDict["IsStartendtime"]
@@ -77,6 +78,8 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 				if IsIsolateComponents
 					# check channel isolation
 					conflictsta = filter(x -> x[1]==iso_stationinfo[1] && string(x[2][end][end])==string(iso_stationinfo[2][end]), isostationlist)
+				else
+					conflictsta = []
 				end
 
 				#println(conflictsta)
@@ -130,7 +133,7 @@ function convert_tmpfile(InputDict::Dict; salvage::Bool=false)
 			rm(path)
 
         catch y
-            #println(y)
+            println(y)
         end
     end
 
