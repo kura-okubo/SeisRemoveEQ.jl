@@ -35,6 +35,13 @@ function seisremoveEQ(InputDict::Dict)
 	InputDict["tmppath"] = tmppath
 	mkpath(tmppath)
 
+	if InputDict["IsOutputRemovalFrac"]
+		removal_fractionpath = joinpath(fodir, "./removal_fractionpath")
+		InputDict["removal_fractionpath"] = removal_fractionpath
+		mkpath(removal_fractionpath)
+	end
+
+
 	Utils.defaultinputdict!(InputDict)
 
 	#print parameters

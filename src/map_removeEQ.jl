@@ -43,6 +43,9 @@ function map_removeEQ(dlid, InputDict::Dict)
     max_wintaper_duration  =InputDict["max_wintaper_duration"]
     removal_shorttimewindow=InputDict["removal_shorttimewindow"]
     overlap                =InputDict["overlap"]
+    Iswhiten               =InputDict["Iswhiten"]
+    freqmin_whiten         =InputDict["freqmin_whiten"]
+    freqmax_whiten         =InputDict["freqmax_whiten"]
     plot_kurtosis_α        =InputDict["plot_kurtosis_α"]
     plot_boxheight         =InputDict["plot_boxheight"]
     plot_span              =InputDict["plot_span"]
@@ -101,6 +104,8 @@ function map_removeEQ(dlid, InputDict::Dict)
             #---Transient error on combination between download margin and resampling---#
             # S.t may contain index 0 in t[:, 1]. in that case , this causes the error on later part, so discard that data.
             if any(Schan.t[:,1] .== 0)
+                println("data gap index found.")
+                println(Schan)
                 Schan.misc["dlerror"] = true
             end
             #---------------------------------------------------------------------------#
@@ -132,6 +137,10 @@ function map_removeEQ(dlid, InputDict::Dict)
                                             float(stalta_threshold), float(overlap), float(stalta_absoluteclip))
                     end
 
+                    if Iswhiten
+                        Remove_eq.s_whiten!(S1, freqmin_whiten, freqmax_whiten)# apply spectral whitening on this channel
+                    end
+
                     bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, Schan, float(plot_kurtosis_α), float(max_wintaper_duration),
                                     plot_boxheight, trunc(Int, plot_span), plot_fmt, fodir, tstamp, tvec, IsSaveFig)
 
@@ -151,6 +160,11 @@ function map_removeEQ(dlid, InputDict::Dict)
 
                         bt_2 = @elapsed S1 = Remove_eq.detect_eq_stalta(S1, float(stalta_longtimewindow), float(removal_shorttimewindow),
                                             float(stalta_threshold), float(overlap))
+
+                        if Iswhiten
+                            Remove_eq.s_whiten!(S1, freqmin_whiten, freqmax_whiten) # apply spectral whitening on this channel
+                        end
+
                         bt_3 = @elapsed S1 = Remove_eq.remove_eq(S1, S, float(plot_kurtosis_α), float(max_wintaper_duration),
                                         plot_boxheight, trunc(Int, plot_span), plot_fmt, fodir, tstamp, tvec, IsSaveFig)
 
@@ -164,6 +178,21 @@ function map_removeEQ(dlid, InputDict::Dict)
                         exit(0)
                     end
 
+                end
+
+                if InputDict["IsOutputRemovalFrac"]
+                    #output removal fraction on this channel
+                    eqidlist = S1.misc["eqtimewindow"][:]
+                    numofremoval = sum(x->x==false, eqidlist, dims=1)
+                    fractionofremoval = numofremoval[1] / length(eqidlist)
+
+                    y, jd = parse.(Int64, split(InputDict["DLtimestamplist"][dlid], ".")[1:2])
+                    tstamp_fname = replace(tstamp, ":" => "-")
+                    fname_out = join([tstamp_fname, st1, "removalfraction","dat"], '.')
+                    fopath = InputDict["removal_fractionpath"]*"/"*fname_out
+                    open(fopath, "w") do io
+                       write(io, @sprintf("%f\n", fractionofremoval))
+                    end
                 end
 
                 #it's not allowed to save this into binary;
