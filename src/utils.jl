@@ -191,7 +191,13 @@ function defaultinputdict!(InputDict::Dict)
 	def["outputformat"]				= "JLD2"
 	def["IsStartendtime"] 			= false
 	def["fodir"] 					= "./dataset"
-    def["foname"] 					= "eq_removed.jld2"
+	def["foname"] 					= "eq_removed.jld2"
+
+	#For dump everytrace
+	#This is always false. If you need to plot some figures for
+	#details of kurtosis and STA/LTA, please turn it true; it slowdowns down computation.
+	def["dumptraces"] 				= false
+	def["dumppath"]					= InputDict["fodir"]*"/dumptraces"
 
 	for key in keys(def)
 		if !haskey(InputDict, key)

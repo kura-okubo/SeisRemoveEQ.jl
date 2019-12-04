@@ -75,8 +75,8 @@ find earthquake and tremors by STA/LTA
 
     original code written by Seth Olinger. For our purpose, overlap is applied for short time window
 """
-function detect_eq_stalta(data::SeisChannel,longWinLength::Float64, shortWinLength::Float64, threshold::Float64, overlap::Float64, stalta_absoluteclip::Float64;
-                            datagap_eps::Float64=1e-8)
+function detect_eq_stalta(data::SeisChannel,longWinLength::Float64, shortWinLength::Float64, threshold::Float64, overlap::Float64, stalta_absoluteclip::Float64,
+                            InputDict::Dict, tstamp::String, st1::String; datagap_eps::Float64=1e-8)
 
 
     #convert window lengths from seconds to samples
@@ -84,6 +84,9 @@ function detect_eq_stalta(data::SeisChannel,longWinLength::Float64, shortWinLeng
     shortWin = trunc(Int,shortWinLength * data.fs)
     overlapWin = trunc(Int,overlap * data.fs)
     trace = @view data.x[:]
+
+    #buffer for sta/lta value
+    staltatrace = zeros(length(trace))
 
     #calculate how much to move beginning of window each iteration
     slide = longWin
@@ -158,6 +161,8 @@ function detect_eq_stalta(data::SeisChannel,longWinLength::Float64, shortWinLeng
                 breakflag = true
             end
 
+            staltatrace[i+n+shortWin] = staLta
+
         end
 
         #advance long window
@@ -165,6 +170,18 @@ function detect_eq_stalta(data::SeisChannel,longWinLength::Float64, shortWinLeng
 
     end
 
+    if InputDict["dumptraces"]
+        #dump sta/lta trace
+        mkpath(InputDict["dumppath"])
+        tstamp_fname = replace(tstamp, ":" => "-")
+        fname_out = join([tstamp_fname, st1, "stalta","dat"], '.')
+        fopath = InputDict["dumppath"]*"/"*fname_out
+        open(fopath, "w") do io
+            for i in 1:length(staltatrace)
+                write(io, @sprintf("%12.8f\n", staltatrace[i]))
+            end
+        end
+    end
     return data
 
 end

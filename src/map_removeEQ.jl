@@ -134,7 +134,7 @@ function map_removeEQ(dlid, InputDict::Dict)
                     if IsSTALTARemoval
                         # detect earthquake and tremors by STA/LTA
                         btsta_1 = @elapsed S1 = Remove_eq.detect_eq_stalta(S1, float(stalta_longtimewindow), float(removal_shorttimewindow),
-                                            float(stalta_threshold), float(overlap), float(stalta_absoluteclip))
+                                            float(stalta_threshold), float(overlap), float(stalta_absoluteclip),  InputDict, tstamp, st1)
                     end
 
                     if Iswhiten
@@ -159,7 +159,7 @@ function map_removeEQ(dlid, InputDict::Dict)
                         data.misc["kurtosis"] = zeros(length(S1.x))
 
                         bt_2 = @elapsed S1 = Remove_eq.detect_eq_stalta(S1, float(stalta_longtimewindow), float(removal_shorttimewindow),
-                                            float(stalta_threshold), float(overlap))
+                                            float(stalta_threshold), float(overlap), InputDict, tstamp, st1)
 
                         if Iswhiten
                             Remove_eq.s_whiten!(S1, freqmin_whiten, freqmax_whiten) # apply spectral whitening on this channel
@@ -194,6 +194,41 @@ function map_removeEQ(dlid, InputDict::Dict)
                        write(io, @sprintf("%f\n", fractionofremoval))
                     end
                 end
+
+
+                if InputDict["dumptraces"]
+                    #dump raw trace
+                    tstamp_fname = replace(tstamp, ":" => "-")
+                    fname_out = join([tstamp_fname, st1, "rawdata","dat"], '.')
+                    fopath = InputDict["dumppath"]*"/"*fname_out
+                    open(fopath, "w") do io
+                        for i in 1:length(Schan.x)
+                            write(io, @sprintf("%12.8f\n", Schan.x[i]))
+                        end
+                    end
+
+                    #dump kurtosis trace
+                    mkpath(InputDict["dumppath"])
+                    tstamp_fname = replace(tstamp, ":" => "-")
+                    fname_out = join([tstamp_fname, st1, "kurtosis","dat"], '.')
+                    fopath = InputDict["dumppath"]*"/"*fname_out
+                    open(fopath, "w") do io
+                        for i in 1:length(S1.misc["kurtosis"])
+                            write(io, @sprintf("%12.8f\n", S1.misc["kurtosis"][i]))
+                        end
+                    end
+
+                    #dump removed trace
+                    tstamp_fname = replace(tstamp, ":" => "-")
+                    fname_out = join([tstamp_fname, st1, "remdata","dat"], '.')
+                    fopath = InputDict["dumppath"]*"/"*fname_out
+                    open(fopath, "w") do io
+                        for i in 1:length(S1.x)
+                            write(io, @sprintf("%12.8f\n", S1.x[i]))
+                        end
+                    end
+                end
+
 
                 #it's not allowed to save this into binary;
                 delete!(S1.misc, "eqtimewindow")
