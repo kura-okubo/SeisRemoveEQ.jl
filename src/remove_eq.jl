@@ -332,7 +332,7 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, plot_kurtosis_α
         figdir = joinpath(fodir, "fig")
         mkpath(figdir)
         figname = @sprintf("%s/%s_%s.%s", figdir, data.id, tstamp, plot_fmt)
-        PlotlyJS.savefig(p, figname)
+        ORCA.savefig(p, figname)
         #display(p)
         #println("press return for next plot...")
         #readline()
