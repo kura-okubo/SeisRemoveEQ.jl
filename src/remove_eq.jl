@@ -303,36 +303,36 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, plot_kurtosis_α
             kurtnormalize = maximum(filter(!isnan, data.misc["kurtosis"][kurtid]))
         end
 
-        trace3 = scatter(;x=tvec[kurtid], y=data.misc["kurtosis"][kurtid] ./ kurtnormalize .* plot_kurtosis_α,
+        trace3 = PlotlyJS.scatter(;x=tvec[kurtid], y=data.misc["kurtosis"][kurtid] ./ kurtnormalize .* plot_kurtosis_α,
          line_color="red", mode="lines", name="kurtosis")
 
         if !isempty(t1)
          shapes = PlotlyJS.rect(t1, t2, y1, y2; fillcolor="#ff99cc", opacity=0.3, line_width=0)
-         layout = Layout(shapes=shapes, width=1200, height=600,
+         layout = PlotlyJS.Layout(shapes=shapes, width=1200, height=600,
              xaxis=attr(title="Time [hour]"),
              yaxis=attr(title="Normalized velocity"),
              font =attr(size=13),
              showlegend=true,
              title = @sprintf("%s %s", data.id, tstamp))
 
-             p = plot([trace1; trace2; trace3],layout)
+             p = PlotlyJS.plot([trace1; trace2; trace3],layout)
 
         else
-         layout = Layout(width=1200, height=600,
+         layout = PlotlyJS.Layout(width=1200, height=600,
              xaxis=attr(title="Time [hour]"),
              yaxis=attr(title="Normalized velocity"),
              font =attr(size=12),
              showlegend=true,
              title = @sprintf("%s %s", data.id, tstamp))
 
-         p = plot([trace1; trace2; trace3],layout)
+         p = PlotlyJS.plot([trace1; trace2; trace3],layout)
 
         end
 
         figdir = joinpath(fodir, "fig")
         mkpath(figdir)
         figname = @sprintf("%s/%s_%s.%s", figdir, data.id, tstamp, plot_fmt)
-        savefig(p, figname)
+        PlotlyJS.savefig(p, figname)
         #display(p)
         #println("press return for next plot...")
         #readline()
