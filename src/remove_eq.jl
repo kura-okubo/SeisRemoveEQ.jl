@@ -3,7 +3,7 @@ module Remove_eq
 
 export detect_eq_kurtosis, stalta, remove_eq, s_whiten, s_whiten!
 
-using SeisIO, SeisNoise, FFTW, DSP, StatsBase, ORCA, SeisIO, Printf, PlotlyJS
+using SeisIO, SeisNoise, FFTW, DSP, StatsBase, Plots, JLD2, SeisIO, Printf
 
 """
     detect_eq_kurtosis(data::SeisChannel,tw::Float64=60.0, threshold::Float64=3.0, overlap::Float64=30)
@@ -286,56 +286,88 @@ function remove_eq(data::SeisChannel, data_origin::SeisChannel, plot_kurtosis_α
 
     if IsSaveFig
 
+        figdir = joinpath(fodir, "fig_removalEQ")
+        if !ispath(figdir); mkpath(figdir); end
+
+        Plots.plot(bg=:white)
         normalized_amp = 0.5 * maximum(data_origin.x[1:plot_span:end])
 
-        trace1 = scatter(;x=tvec[1:plot_span:end], y=data_origin.x[1:plot_span:end]./ normalized_amp,
-         mode="lines", name="raw data", line_color="black")
+        Plots.plot!(tvec[1:plot_span:end], data_origin.x[1:plot_span:end]./ normalized_amp,
+                    label="raw data", color="black")
 
-        trace2 = scatter(;x=tvec[1:plot_span:end], y=data.x[1:plot_span:end]./ normalized_amp,
-         mode="lines", name="after remove", line_color="blue")
+        Plots.plot!(tvec[1:plot_span:end], data.x[1:plot_span:end]./ normalized_amp,
+                    label="after removal", color="blue")
 
         #to plot kurtosis computed points
         kurtid = findall(x -> !iszero(data.misc["kurtosis"][x]), 1:length(data.misc["kurtosis"]))
-
         if isempty(filter(!isnan, data.misc["kurtosis"][kurtid]))
             kurtnormalize = 1.0
         else
             kurtnormalize = maximum(filter(!isnan, data.misc["kurtosis"][kurtid]))
         end
 
-        trace3 = PlotlyJS.scatter(;x=tvec[kurtid], y=data.misc["kurtosis"][kurtid] ./ kurtnormalize .* plot_kurtosis_α,
-         line_color="red", mode="lines", name="kurtosis")
+        Plots.plot!(tvec[kurtid], data.misc["kurtosis"][kurtid] ./ kurtnormalize .* plot_kurtosis_α,
+                    color="red",
+                    label="kurtosis")
 
-        if !isempty(t1)
-         shapes = PlotlyJS.rect(t1, t2, y1, y2; fillcolor="#ff99cc", opacity=0.3, line_width=0)
-         layout = PlotlyJS.Layout(shapes=shapes, width=1200, height=600,
-             xaxis=attr(title="Time [hour]"),
-             yaxis=attr(title="Normalized velocity"),
-             font =attr(size=13),
-             showlegend=true,
-             title = @sprintf("%s %s", data.id, tstamp))
+        p = Plots.plot!(xlabel = "[hours]",
+                    ylabel = "[m/s]",
+                    title =  @sprintf("%s %s", data.id, tstamp),
+                    size = (1200, 800))
 
-             p = PlotlyJS.plot([trace1; trace2; trace3],layout)
-
-        else
-         layout = PlotlyJS.Layout(width=1200, height=600,
-             xaxis=attr(title="Time [hour]"),
-             yaxis=attr(title="Normalized velocity"),
-             font =attr(size=12),
-             showlegend=true,
-             title = @sprintf("%s %s", data.id, tstamp))
-
-         p = PlotlyJS.plot([trace1; trace2; trace3],layout)
-
-        end
-
-        figdir = joinpath(fodir, "fig")
-        mkpath(figdir)
         figname = @sprintf("%s/%s_%s.%s", figdir, data.id, tstamp, plot_fmt)
-        ORCA.savefig(p, figname)
-        #display(p)
-        #println("press return for next plot...")
-        #readline()
+        Plots.savefig(p, figname)
+
+
+        # save jld2 fig file
+        # trace1 = scatter(;x=tvec[1:plot_span:end], y=data_origin.x[1:plot_span:end]./ normalized_amp,
+        #  mode="lines", name="raw data", line_color="black")
+        #
+        # trace2 = scatter(;x=tvec[1:plot_span:end], y=data.x[1:plot_span:end]./ normalized_amp,
+        #  mode="lines", name="after remove", line_color="blue")
+        #
+        # #to plot kurtosis computed points
+        # kurtid = findall(x -> !iszero(data.misc["kurtosis"][x]), 1:length(data.misc["kurtosis"]))
+        #
+        # if isempty(filter(!isnan, data.misc["kurtosis"][kurtid]))
+        #     kurtnormalize = 1.0
+        # else
+        #     kurtnormalize = maximum(filter(!isnan, data.misc["kurtosis"][kurtid]))
+        # end
+        #
+        # trace3 = PlotlyJS.scatter(;x=tvec[kurtid], y=data.misc["kurtosis"][kurtid] ./ kurtnormalize .* plot_kurtosis_α,
+        #  line_color="red", mode="lines", name="kurtosis")
+        #
+        # if !isempty(t1)
+        #  shapes = PlotlyJS.rect(t1, t2, y1, y2; fillcolor="#ff99cc", opacity=0.3, line_width=0)
+        #  layout = PlotlyJS.Layout(shapes=shapes, width=1200, height=600,
+        #      xaxis=attr(title="Time [hour]"),
+        #      yaxis=attr(title="Normalized velocity"),
+        #      font =attr(size=13),
+        #      showlegend=true,
+        #      title = @sprintf("%s %s", data.id, tstamp))
+        #
+        #      p = PlotlyJS.plot([trace1; trace2; trace3],layout)
+        #
+        # else
+        #  layout = PlotlyJS.Layout(width=1200, height=600,
+        #      xaxis=attr(title="Time [hour]"),
+        #      yaxis=attr(title="Normalized velocity"),
+        #      font =attr(size=12),
+        #      showlegend=true,
+        #      title = @sprintf("%s %s", data.id, tstamp))
+        #
+        #  p = PlotlyJS.plot([trace1; trace2; trace3],layout)
+        #
+        # end
+        #
+        # figdir = joinpath(fodir, "fig")
+        # mkpath(figdir)
+        # figname = @sprintf("%s/%s_%s.%s", figdir, data.id, tstamp, plot_fmt)
+        # ORCA.savefig(p, figname)
+        # #display(p)
+        # #println("press return for next plot...")
+        # #readline()
     end
 
     return data

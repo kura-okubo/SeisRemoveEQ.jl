@@ -5,7 +5,7 @@ include("get_kurtosis.jl")
 include("remove_eq.jl")
 
 using .Get_kurtosis, .Remove_eq
-using SeisIO, Dates, JLD2, PlotlyJS, Printf, FileIO
+using SeisIO, Dates, JLD2, Printf, FileIO
 using Suppressor
 
 export map_removeEQ
