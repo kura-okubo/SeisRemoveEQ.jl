@@ -172,7 +172,7 @@ I. What is the purpose?
 
 II. Process flow
 
-	1. Try to find channels which has same network.station, and same component
+	1. Try to find channels which has same network.station and same component,
 	but different channel
 
 	2. If found, search priority with `haskey(InputDict["priority_channles"])`.
@@ -194,9 +194,9 @@ III. Potential issue
 
 	We assume that the physical measurement at same station does not change so much
 	that the cross-correlation is not influenced by the replacement of channels.
-	If it is not satisfied, it causes diference in the cross-correlatino result.
+	If it is not satisfied, it causes diference in the cross-correlation result.
 	Please check the consistency between channels at same station if you find
-	some discontinuous result before and after switch of channel.
+	some discontinuous result before and after the switching of channel.
 
 """
 function isolate_components(paths_all::AbstractArray, InputDict::Dict)
@@ -207,10 +207,10 @@ function isolate_components(paths_all::AbstractArray, InputDict::Dict)
 		tmp = split(path, "/")[end]
 		# read meta data from file name
 		ftmpname = split(tmp, ".")
-
+		println(ftmpname)
 		if occursin("-", ftmpname[3])
 			# format would be y, jd, T00-00-00, sta, loc, cha
-			y, d, tmpT, net, sta, loc, cha = split(ftmpname, ".")
+			y, d, tmpT, net, sta, loc, cha = ftmpname
 			#iso_stationinfo = (join([y, d, net, sta, loc], "-"), cha)
 			# (time, net, sta for find the station, channel name and component)
 			push!(iso_list, (path, join([y, d, tmpT, net, sta], "-"), net, sta, cha[1:2], cha[3]))
@@ -227,7 +227,7 @@ function isolate_components(paths_all::AbstractArray, InputDict::Dict)
 
 	for (ista, current_sta) in enumerate(iso_list)
 		for jsta = ista:length(iso_list)
-			compared_sta = iso_list[j]
+			compared_sta = iso_list[jsta]
 			if current_sta[2] != compared_sta[2] || current_sta[6] != compared_sta[6]
 				# there is no conflict in channel, so add the current one to isocomp list
 				if ista ∉ isocomp_idlist
@@ -250,7 +250,8 @@ function isolate_components(paths_all::AbstractArray, InputDict::Dict)
 
 				else
 					# this has priority; perform process 3. e.g. compared_sta[5] = "SP"
-					priority_compared = findfirst(compared_cha, InputDict["priority_channles"][iso_net])
+					# @show compared_cha
+					priority_compared = findfirst(x -> x == compared_cha, InputDict["priority_channles"][iso_net])
 					if isempty(priority_compared)
 						# this channel has no priority. take the current one
 						if ista ∉ isocomp_idlist
@@ -259,7 +260,7 @@ function isolate_components(paths_all::AbstractArray, InputDict::Dict)
 
 					else
 						# this has priority so that search priority for current one.
-						priority_current = findfirst(current_cha, InputDict["priority_channles"][iso_net])
+						priority_current = findfirst(x -> x == current_cha, InputDict["priority_channles"][iso_net])
 						if isempty(priority_current)
 							# current channel has no priority. take the compared one
 							if jsta ∉ isocomp_idlist
